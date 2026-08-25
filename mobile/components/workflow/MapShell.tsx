@@ -19,9 +19,11 @@ export function MapShell({
       <SafeAreaView style={styles.overlay} edges={["top"]} pointerEvents="box-none">
         {top ? <View style={styles.top}>{top}</View> : null}
       </SafeAreaView>
-      <SafeAreaView style={styles.bottomSafe} edges={["bottom"]} pointerEvents="box-none">
-        <View style={styles.sheet}>{sheet}</View>
-      </SafeAreaView>
+      <View style={styles.bottomSafe} pointerEvents="box-none">
+        <View style={styles.sheet} pointerEvents="auto">
+          {sheet}
+        </View>
+      </View>
     </View>
   );
 }
@@ -31,7 +33,12 @@ export function SheetHandle() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surface },
+  root: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    // Clip Android elevation so the sheet cannot steal tab-bar taps.
+    overflow: "hidden",
+  },
   overlay: {
     position: "absolute",
     top: 0,
@@ -46,6 +53,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 2,
   },
   sheet: {
     backgroundColor: colors.white,
@@ -53,15 +61,15 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingHorizontal: 18,
     paddingTop: 10,
-    paddingBottom: 18,
+    paddingBottom: 14,
     gap: 12,
     borderWidth: 1,
     borderColor: colors.border,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 12,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -3 },
   },
   handle: {
     alignSelf: "center",

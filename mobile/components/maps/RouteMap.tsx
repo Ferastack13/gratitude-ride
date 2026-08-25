@@ -12,6 +12,8 @@ type Props = {
   center: { lat: number; lng: number };
   pickup?: MapPoint;
   dropoff?: MapPoint;
+  /** Nearby courier / hub dots (Uber-style availability). */
+  hubs?: MapPoint[];
   height?: number;
   fullBleed?: boolean;
   delta?: number;
@@ -21,6 +23,7 @@ export function RouteMap({
   center,
   pickup,
   dropoff,
+  hubs = [],
   height = 220,
   fullBleed = false,
   delta = 0.08,
@@ -32,6 +35,7 @@ export function RouteMap({
         fullBleed={fullBleed}
         pickup={pickup}
         dropoff={dropoff}
+        hubs={hubs}
       />
     );
   }
@@ -59,7 +63,18 @@ export function RouteMap({
             latitudeDelta: delta,
             longitudeDelta: delta,
           }}
+          showsUserLocation
+          showsMyLocationButton={false}
         >
+          {hubs.map((hub, index) => (
+            <Marker
+              key={`hub-${index}-${hub.lat}`}
+              coordinate={{ latitude: hub.lat, longitude: hub.lng }}
+              title={hub.label}
+              pinColor={colors.primaryGlow}
+              opacity={0.85}
+            />
+          ))}
           {pickup ? (
             <Marker
               coordinate={{ latitude: pickup.lat, longitude: pickup.lng }}
@@ -94,6 +109,7 @@ export function RouteMap({
         fullBleed={fullBleed}
         pickup={pickup}
         dropoff={dropoff}
+        hubs={hubs}
       />
     );
   }
@@ -104,11 +120,13 @@ function MapFallback({
   fullBleed,
   pickup,
   dropoff,
+  hubs = [],
 }: {
   height?: number;
   fullBleed?: boolean;
   pickup?: MapPoint;
   dropoff?: MapPoint;
+  hubs?: MapPoint[];
 }) {
   return (
     <View
@@ -119,7 +137,8 @@ function MapFallback({
       ]}
     >
       <View style={styles.grid} />
-      <Text style={styles.fallbackTitle}>Live map</Text>
+      <Text style={styles.fallbackTitle}>Live coverage map</Text>
+      <Text style={styles.hubCount}>{hubs.length} hubs nearby</Text>
       {pickup ? (
         <Text style={styles.pinGreen}>● Pickup · {pickup.label ?? "Origin"}</Text>
       ) : null}
@@ -158,6 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#d1fae5",
   },
   fallbackTitle: { fontWeight: "800", color: colors.dark, fontSize: 15 },
+  hubCount: { color: colors.primaryDark, fontWeight: "700", fontSize: 12 },
   pinGreen: { color: colors.primaryDark, fontWeight: "700", fontSize: 13 },
   pinGold: { color: colors.secondaryDark, fontWeight: "700", fontSize: 13 },
 });

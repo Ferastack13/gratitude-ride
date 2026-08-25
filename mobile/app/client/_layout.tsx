@@ -28,7 +28,11 @@ export default function ClientLayout() {
         tabBarStyle: {
           backgroundColor: colors.white,
           borderTopColor: colors.border,
+          height: 64,
+          paddingTop: 6,
+          paddingBottom: 8,
         },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
       }}
     >
       <Tabs.Screen
@@ -69,7 +73,7 @@ export default function ClientLayout() {
       />
       <Tabs.Screen
         name="track/[id]"
-        options={{ href: null, headerShown: true, title: "Track" }}
+        options={{ href: null, headerShown: false }}
       />
     </Tabs>
   );

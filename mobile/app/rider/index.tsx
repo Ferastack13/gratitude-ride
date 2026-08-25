@@ -3,6 +3,7 @@ import { SectionLabel } from "@/components/home/SectionLabel";
 import { Screen } from "@/components/ui/Screen";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -15,12 +16,6 @@ import {
   View,
 } from "react-native";
 
-const CITY_DEMAND = [
-  { city: "Lagos", heat: 0.86, jobs: 24 },
-  { city: "Abuja", heat: 0.58, jobs: 11 },
-  { city: "Port Harcourt", heat: 0.71, jobs: 15 },
-];
-
 export default function RiderHubScreen() {
   const { profile } = useAuth();
   const [online, setOnline] = useState(false);
@@ -28,7 +23,15 @@ export default function RiderHubScreen() {
   const [deliveries, setDeliveries] = useState(0);
   const [rating, setRating] = useState(5);
   const [pendingCount, setPendingCount] = useState(0);
+  const [cityDemand, setCityDemand] = useState<
+    { city: string; jobs: number }[]
+  >([
+    { city: "Lagos", jobs: 0 },
+    { city: "Abuja", jobs: 0 },
+    { city: "Port Harcourt", jobs: 0 },
+  ]);
   const [toggling, setToggling] = useState(false);
+  const [activeTripId, setActiveTripId] = useState<string | null>(null);
   const pulse = useRef(new Animated.Value(1)).current;
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Rider";
@@ -52,11 +55,43 @@ export default function RiderHubScreen() {
         setRating(Number(data.rating || 5));
       });
 
-    supabase
-      .from("deliveries")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending")
-      .then(({ count }) => setPendingCount(count ?? 0));
+    (async () => {
+      const { count } = await supabase
+        .from("deliveries")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      setPendingCount(count ?? 0);
+
+      const cities = ["Lagos", "Abuja", "Port Harcourt"] as const;
+      const demand = await Promise.all(
+        cities.map(async (city) => {
+          const { count: cityCount } = await supabase
+            .from("deliveries")
+            .select("id", { count: "exact", head: true })
+            .eq("status", "pending")
+            .eq("city", city);
+          return { city, jobs: cityCount ?? 0 };
+        })
+      );
+      setCityDemand(demand);
+
+      const { data: rider } = await supabase
+        .from("riders")
+        .select("id")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      if (rider?.id) {
+        const { data: active } = await supabase
+          .from("deliveries")
+          .select("id")
+          .eq("rider_id", rider.id)
+          .in("status", ["accepted", "picked_up", "in_transit"])
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setActiveTripId(active?.id ?? null);
+      }
+    })();
   }, [profile?.id]);
 
   useEffect(() => {
@@ -130,12 +165,12 @@ export default function RiderHubScreen() {
 
         <View style={styles.earnBlock}>
           <Text style={styles.earnLabel}>Today's earnings</Text>
-          <Text style={styles.earnValue}>₦{earnings.toLocaleString()}</Text>
+          <Text style={styles.earnValue}>{formatCurrency(earnings)}</Text>
           <View style={styles.goalTrack}>
             <View style={[styles.goalFill, { width: `${progress * 100}%` }]} />
           </View>
           <Text style={styles.goalHint}>
-            Goal ₦{todayGoal.toLocaleString()} · {Math.round(progress * 100)}%
+            Goal {formatCurrency(todayGoal)} · {Math.round(progress * 100)}%
             complete
           </Text>
         </View>
@@ -208,26 +243,31 @@ export default function RiderHubScreen() {
           icon="navigate"
           label="Navigate"
           hint="Active trip"
-          onPress={() => router.push("/rider/orders")}
+          onPress={() =>
+            activeTripId
+              ? router.push(`/rider/active/${activeTripId}` as never)
+              : router.push("/rider/orders")
+          }
           tone="dark"
         />
       </View>
 
       <SectionLabel title="City demand" action="Live" />
       <View style={styles.demandCard}>
-        {CITY_DEMAND.map((row) => (
-          <View key={row.city} style={styles.demandRow}>
-            <View style={styles.demandMeta}>
-              <Text style={styles.demandCity}>{row.city}</Text>
-              <Text style={styles.demandJobs}>{row.jobs} open</Text>
+        {cityDemand.map((row) => {
+          const heat = Math.min(1, Math.max(0.08, row.jobs / 12));
+          return (
+            <View key={row.city} style={styles.demandRow}>
+              <View style={styles.demandMeta}>
+                <Text style={styles.demandCity}>{row.city}</Text>
+                <Text style={styles.demandJobs}>{row.jobs} open</Text>
+              </View>
+              <View style={styles.heatTrack}>
+                <View style={[styles.heatFill, { width: `${heat * 100}%` }]} />
+              </View>
             </View>
-            <View style={styles.heatTrack}>
-              <View
-                style={[styles.heatFill, { width: `${row.heat * 100}%` }]}
-              />
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <SectionLabel title="Shift tips" />
@@ -257,9 +297,9 @@ export default function RiderHubScreen() {
         <Text style={styles.queueBody}>
           {online
             ? pendingCount > 0
-              ? `${pendingCount} pending deliveries are waiting. Open Orders to accept.`
-              : "You're live. New requests will appear here the moment they're posted."
-            : "Go online to unlock the live courier queue across your service cities."}
+              ? `${pendingCount} pending jobs nearby. Open Orders for timed Accept offers with upfront payout.`
+              : "You're live. New requests will pop as timed offers — Accept within 20s."
+            : "Go online to unlock timed job offers across Lagos, Abuja, and Port Harcourt."}
         </Text>
       </Pressable>
     </Screen>

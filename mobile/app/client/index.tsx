@@ -1,13 +1,15 @@
 import { QuickAction } from "@/components/home/QuickAction";
 import { SectionLabel } from "@/components/home/SectionLabel";
+import { Badge } from "@/components/ui/Badge";
 import { Screen } from "@/components/ui/Screen";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { SERVICE_CITIES } from "@/lib/cities";
+import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const SERVICES = [
@@ -43,33 +45,41 @@ export default function ClientHomeScreen() {
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  useEffect(() => {
+  const loadHome = useCallback(async () => {
     if (!profile?.id) return;
 
-    (async () => {
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", profile.id)
-        .maybeSingle();
-      if (!client?.id) return;
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", profile.id)
+      .maybeSingle();
+    if (!client?.id) {
+      setActiveCount(0);
+      setRecent([]);
+      return;
+    }
 
-      const { count } = await supabase
-        .from("deliveries")
-        .select("id", { count: "exact", head: true })
-        .eq("client_id", client.id)
-        .in("status", ["pending", "accepted", "picked_up", "in_transit"]);
-      setActiveCount(count ?? 0);
+    const { count } = await supabase
+      .from("deliveries")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", client.id)
+      .in("status", ["pending", "accepted", "picked_up", "in_transit"]);
+    setActiveCount(count ?? 0);
 
-      const { data: rows } = await supabase
-        .from("deliveries")
-        .select("tracking_id, status, delivery_address, estimated_fee")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: false })
-        .limit(3);
-      setRecent(rows ?? []);
-    })();
+    const { data: rows } = await supabase
+      .from("deliveries")
+      .select("tracking_id, status, delivery_address, estimated_fee")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .limit(3);
+    setRecent(rows ?? []);
   }, [profile?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHome();
+    }, [loadHome])
+  );
 
   return (
     <Screen>
@@ -88,8 +98,8 @@ export default function ClientHomeScreen() {
           onPress={() => router.push("/client/book")}
         >
           <View>
-            <Text style={styles.ctaTitle}>Book a delivery</Text>
-            <Text style={styles.ctaHint}>Quote in seconds · Live tracking</Text>
+            <Text style={styles.ctaTitle}>Where to deliver?</Text>
+            <Text style={styles.ctaHint}>Map booking · fare · live courier</Text>
           </View>
           <View style={styles.ctaIcon}>
             <Ionicons name="arrow-forward" size={18} color={colors.dark} />
@@ -193,12 +203,14 @@ export default function ClientHomeScreen() {
                 <Text style={styles.recentAddr} numberOfLines={1}>
                   {item.delivery_address}
                 </Text>
-              </View>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {item.status.replace("_", " ")}
+                <Text style={styles.recentFee}>
+                  {formatCurrency(item.estimated_fee)}
                 </Text>
               </View>
+              <Badge
+                label={formatStatus(item.status)}
+                tone={statusTone(item.status)}
+              />
             </Pressable>
           ))
         )}
@@ -336,16 +348,10 @@ const styles = StyleSheet.create({
   },
   recentId: { fontWeight: "800", color: colors.dark, fontFamily: "monospace" },
   recentAddr: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  badge: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    color: colors.primaryDark,
-    fontSize: 10,
+  recentFee: {
+    color: colors.primary,
+    fontSize: 12,
     fontWeight: "800",
-    textTransform: "capitalize",
+    marginTop: 2,
   },
 });

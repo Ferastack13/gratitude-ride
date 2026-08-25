@@ -11,15 +11,27 @@ export function MapShell({
   map,
   top,
   sheet,
+  mapInteractive = true,
 }: {
   map: ReactNode;
   top?: ReactNode;
   sheet: ReactNode;
+  mapInteractive?: boolean;
 }) {
   return (
-    <View style={styles.root}>
-      <View style={styles.mapPane}>
-        {map}
+    <View style={styles.root} collapsable={false}>
+      <View
+        style={styles.mapPane}
+        collapsable={false}
+        pointerEvents={mapInteractive ? "auto" : "box-none"}
+      >
+        <View
+          style={styles.mapFill}
+          pointerEvents={mapInteractive ? "auto" : "none"}
+          collapsable={false}
+        >
+          {map}
+        </View>
         <SafeAreaView
           style={styles.topOverlay}
           edges={["top"]}
@@ -28,7 +40,9 @@ export function MapShell({
           {top ? <View style={styles.top}>{top}</View> : null}
         </SafeAreaView>
       </View>
-      <View style={styles.sheet}>{sheet}</View>
+      <View style={styles.sheet} collapsable={false}>
+        {sheet}
+      </View>
     </View>
   );
 }
@@ -47,6 +61,9 @@ const styles = StyleSheet.create({
     minHeight: 180,
     position: "relative",
     overflow: "hidden",
+  },
+  mapFill: {
+    flex: 1,
   },
   topOverlay: {
     position: "absolute",

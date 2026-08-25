@@ -142,8 +142,15 @@ export default function ClientHomeScreen() {
 
   return (
     <MapShell
+      mapInteractive={false}
       map={
-        <RouteMap fullBleed center={config.center} hubs={hubs} delta={0.13} />
+        <RouteMap
+          fullBleed
+          interactive={false}
+          center={config.center}
+          hubs={hubs}
+          delta={0.13}
+        />
       }
       top={
         <View style={styles.topRow}>

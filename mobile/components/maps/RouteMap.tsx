@@ -17,6 +17,8 @@ type Props = {
   /** Fill the parent map pane (flex layout) — does not cover the tab bar. */
   fullBleed?: boolean;
   delta?: number;
+  /** When false, map ignores gestures (fixes Android tab-bar touch theft). */
+  interactive?: boolean;
 };
 
 export function RouteMap({
@@ -27,6 +29,7 @@ export function RouteMap({
   height = 220,
   fullBleed = false,
   delta = 0.08,
+  interactive = true,
 }: Props) {
   if (Platform.OS === "web") {
     return (
@@ -54,6 +57,8 @@ export function RouteMap({
           fullBleed ? styles.full : styles.shell,
           !fullBleed ? { height } : null,
         ]}
+        pointerEvents={interactive ? "auto" : "none"}
+        collapsable={false}
       >
         <MapView
           style={StyleSheet.absoluteFill}
@@ -63,9 +68,15 @@ export function RouteMap({
             latitudeDelta: delta,
             longitudeDelta: delta,
           }}
-          showsUserLocation
+          showsUserLocation={interactive}
           showsMyLocationButton={false}
-          pointerEvents="auto"
+          scrollEnabled={interactive}
+          zoomEnabled={interactive}
+          rotateEnabled={false}
+          pitchEnabled={false}
+          toolbarEnabled={false}
+          moveOnMarkerPress={false}
+          liteMode={Platform.OS === "android" && !interactive}
         >
           {hubs.map((hub, index) => (
             <Marker

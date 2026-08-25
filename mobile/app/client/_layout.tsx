@@ -21,13 +21,12 @@ export default function ClientLayout() {
 
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
-        // Keep all tabs mounted + skip transition so switches feel instant.
         lazy: false,
         freezeOnBlur: true,
-        animation: "none",
-        sceneStyle: { backgroundColor: colors.surface },
+        sceneStyle: { backgroundColor: colors.surface, flex: 1 },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarHideOnKeyboard: true,
@@ -36,10 +35,12 @@ export default function ClientLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 1,
           height: Platform.OS === "ios" ? 84 : 64,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === "ios" ? 24 : 8,
-          elevation: 28,
-          zIndex: 100,
+          paddingTop: 4,
+          paddingBottom: Platform.OS === "ios" ? 22 : 8,
+          // Keep bar in normal flow — never absolute over map screens.
+          position: "relative",
+          elevation: 12,
+          zIndex: 999,
         },
         tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
         tabBarItemStyle: { paddingVertical: 2 },
@@ -49,6 +50,7 @@ export default function ClientLayout() {
         name="index"
         options={{
           title: "Home",
+          href: "/client",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" color={color} size={size} />
           ),
@@ -58,6 +60,7 @@ export default function ClientLayout() {
         name="book"
         options={{
           title: "Book",
+          href: "/client/book",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cube" color={color} size={size} />
           ),
@@ -67,6 +70,7 @@ export default function ClientLayout() {
         name="deliveries"
         options={{
           title: "Deliveries",
+          href: "/client/deliveries",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="map" color={color} size={size} />
           ),
@@ -76,6 +80,7 @@ export default function ClientLayout() {
         name="profile"
         options={{
           title: "Profile",
+          href: "/client/profile",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" color={color} size={size} />
           ),

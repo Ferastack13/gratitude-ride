@@ -12,9 +12,9 @@ type Props = {
   center: { lat: number; lng: number };
   pickup?: MapPoint;
   dropoff?: MapPoint;
-  /** Nearby courier / hub dots (Uber-style availability). */
   hubs?: MapPoint[];
   height?: number;
+  /** Fill the parent map pane (flex layout) — does not cover the tab bar. */
   fullBleed?: boolean;
   delta?: number;
 };
@@ -52,7 +52,7 @@ export function RouteMap({
       <View
         style={[
           fullBleed ? styles.full : styles.shell,
-          !fullBleed && { height },
+          !fullBleed ? { height } : null,
         ]}
       >
         <MapView
@@ -65,6 +65,7 @@ export function RouteMap({
           }}
           showsUserLocation
           showsMyLocationButton={false}
+          pointerEvents="auto"
         >
           {hubs.map((hub, index) => (
             <Marker
@@ -72,7 +73,7 @@ export function RouteMap({
               coordinate={{ latitude: hub.lat, longitude: hub.lng }}
               title={hub.label}
               pinColor={colors.primaryGlow}
-              opacity={0.85}
+              opacity={0.9}
             />
           ))}
           {pickup ? (
@@ -159,8 +160,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  full: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 },
-  fullFallback: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
+  // Fill parent map pane only — never position against the window/tab bar.
+  full: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  fullFallback: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   fallback: {
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -172,7 +186,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   grid: {
-    ...StyleSheet.absoluteFill,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     opacity: 0.35,
     backgroundColor: "#d1fae5",
   },

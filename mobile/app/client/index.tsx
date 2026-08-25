@@ -8,7 +8,12 @@ import {
   SERVICE_CITIES,
   type ServiceCity,
 } from "@/lib/cities";
-import { formatCurrency, formatStatus, shortAddress, statusTone } from "@/lib/format";
+import {
+  formatCurrency,
+  formatStatus,
+  shortAddress,
+  statusTone,
+} from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
@@ -36,7 +41,7 @@ const SERVICES = [
   { id: "express", title: "Express", icon: "flash" as const },
   { id: "standard", title: "Standard", icon: "bicycle" as const },
   { id: "care", title: "Care", icon: "shield-checkmark" as const },
-  { id: "later", title: "Later", icon: "time" as const },
+  { id: "schedule", title: "Schedule", icon: "time" as const },
 ];
 
 export default function ClientHomeScreen() {
@@ -47,9 +52,6 @@ export default function ClientHomeScreen() {
 
   const config = getCityConfig(city);
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const loadHome = useCallback(async () => {
     if (!profile?.id) return;
@@ -104,66 +106,79 @@ export default function ClientHomeScreen() {
     const seen = new Set<string>();
     const out: { label: string; address: string }[] = [];
     for (const row of recent) {
-      const key = row.delivery_address;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seen.has(row.delivery_address)) continue;
+      seen.add(row.delivery_address);
       out.push({
         label: shortAddress(row.delivery_address),
         address: row.delivery_address,
       });
-      if (out.length >= 3) break;
+      if (out.length >= 2) break;
     }
-    if (out.length < 3) {
-      for (const hub of config.hubs) {
-        if (seen.has(hub.address)) continue;
-        out.push({ label: hub.label, address: hub.address });
-        if (out.length >= 3) break;
-      }
+    for (const hub of config.hubs) {
+      if (out.length >= 3) break;
+      if (seen.has(hub.address)) continue;
+      out.push({ label: hub.label, address: hub.address });
     }
     return out;
   }, [recent, config.hubs]);
 
   const openSupport = () => {
-    Alert.alert("Safety & support", "Need help with a delivery?", [
+    Alert.alert("Safety & support", "Need help right now?", [
       {
-        text: "WhatsApp support",
+        text: "WhatsApp",
         onPress: () => Linking.openURL("https://wa.me/2348000000000"),
       },
       {
-        text: "Emergency tip",
+        text: "Safety tip",
         onPress: () =>
           Alert.alert(
             "Stay safe",
-            "Share your tracking ID with a trusted contact and wait in a public spot for pickup/drop-off."
+            "Share your tracking ID with someone you trust before handover."
           ),
       },
-      { text: "Cancel", style: "cancel" },
+      { text: "Close", style: "cancel" },
     ]);
   };
 
   return (
     <MapShell
       map={
-        <RouteMap
-          fullBleed
-          center={config.center}
-          hubs={hubs}
-          delta={0.14}
-        />
+        <RouteMap fullBleed center={config.center} hubs={hubs} delta={0.13} />
       }
       top={
         <View style={styles.topRow}>
           <Pressable
-            style={styles.iconBtn}
+            style={styles.roundBtn}
             onPress={() => router.push("/client/profile")}
           >
             <Ionicons name="menu" size={20} color={colors.dark} />
           </Pressable>
 
+          <View style={styles.brandPill}>
+            <Text style={styles.brandText}>Gratitude Ride</Text>
+          </View>
+
+          <Pressable style={styles.sosBtn} onPress={openSupport}>
+            <Ionicons name="shield" size={18} color={colors.white} />
+          </Pressable>
+        </View>
+      }
+      sheet={
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.sheetBody}
+        >
+          <SheetHandle />
+
+          <Text style={styles.hello}>Hi {firstName}</Text>
+          <Text style={styles.helloSub}>Where should we deliver today?</Text>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cityRow}
+            contentContainerStyle={styles.cities}
           >
             {SERVICE_CITIES.map((item) => {
               const on = item.id === city;
@@ -171,13 +186,8 @@ export default function ClientHomeScreen() {
                 <Pressable
                   key={item.id}
                   onPress={() => setCity(item.id)}
-                  style={[styles.cityPill, on && styles.cityPillOn]}
+                  style={[styles.cityChip, on && styles.cityChipOn]}
                 >
-                  <Ionicons
-                    name="location"
-                    size={12}
-                    color={on ? colors.white : colors.primary}
-                  />
                   <Text style={[styles.cityText, on && styles.cityTextOn]}>
                     {item.label}
                   </Text>
@@ -185,35 +195,6 @@ export default function ClientHomeScreen() {
               );
             })}
           </ScrollView>
-
-          <Pressable style={styles.sosBtn} onPress={openSupport}>
-            <Ionicons name="shield-checkmark" size={18} color={colors.white} />
-          </Pressable>
-        </View>
-      }
-      sheet={
-        <ScrollView
-          style={styles.sheetScroll}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          contentContainerStyle={styles.sheetInner}
-        >
-          <SheetHandle />
-
-          <View style={styles.greetRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.greet}>
-                {greeting}, {firstName}
-              </Text>
-              <Text style={styles.sub}>
-                {hubs.length} hubs live · couriers around {city}
-              </Text>
-            </View>
-            <View style={styles.avail}>
-              <View style={styles.availDot} />
-              <Text style={styles.availText}>Online</Text>
-            </View>
-          </View>
 
           {active ? (
             <Pressable
@@ -223,7 +204,7 @@ export default function ClientHomeScreen() {
               }
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.activeLabel}>Ongoing delivery</Text>
+                <Text style={styles.activeEyebrow}>Ongoing delivery</Text>
                 <Text style={styles.activeId}>{active.tracking_id}</Text>
                 <Text style={styles.activeAddr} numberOfLines={1}>
                   {shortAddress(active.delivery_address)}
@@ -233,100 +214,77 @@ export default function ClientHomeScreen() {
                 label={formatStatus(active.status)}
                 tone={statusTone(active.status)}
               />
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Pressable>
           ) : null}
 
+          {/* Lagride / Uber primary action */}
           <Pressable
             style={({ pressed }) => [
               styles.whereTo,
-              pressed && { opacity: 0.92 },
+              pressed && { transform: [{ scale: 0.99 }] },
             ]}
             onPress={() => router.push("/client/book")}
           >
-            <View style={styles.searchIcon}>
+            <View style={styles.searchBubble}>
               <Ionicons name="search" size={18} color={colors.dark} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.whereTitle}>Where to deliver?</Text>
-              <Text style={styles.whereHint}>Pickup · drop-off · instant fare</Text>
+              <Text style={styles.whereHint}>Tap to set pickup & drop-off</Text>
             </View>
-            <View style={styles.laterChip}>
+            <View style={styles.later}>
               <Ionicons name="time-outline" size={14} color={colors.dark} />
               <Text style={styles.laterText}>Later</Text>
             </View>
           </Pressable>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.serviceRow}
-          >
+          <View style={styles.serviceRow}>
             {SERVICES.map((s) => (
               <Pressable
                 key={s.id}
-                style={styles.serviceChip}
+                style={styles.service}
                 onPress={() => router.push("/client/book")}
               >
                 <View style={styles.serviceIcon}>
-                  <Ionicons name={s.icon} size={16} color={colors.primary} />
+                  <Ionicons name={s.icon} size={18} color={colors.primary} />
                 </View>
-                <Text style={styles.serviceTitle}>{s.title}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.section}>Suggested drop-offs</Text>
-          <View style={styles.suggestions}>
-            {suggestions.map((item) => (
-              <Pressable
-                key={item.address}
-                style={styles.suggestion}
-                onPress={() => router.push("/client/book")}
-              >
-                <View style={styles.suggestionIcon}>
-                  <Ionicons name="navigate" size={16} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.suggestionTitle}>{item.label}</Text>
-                  <Text style={styles.suggestionAddr} numberOfLines={1}>
-                    {item.address}
-                  </Text>
-                </View>
-                <Ionicons name="arrow-forward" size={16} color={colors.muted} />
+                <Text style={styles.serviceLabel}>{s.title}</Text>
               </Pressable>
             ))}
           </View>
 
-          {recent.length > 0 ? (
-            <>
-              <Pressable
-                style={styles.sectionRow}
-                onPress={() => router.push("/client/deliveries")}
-              >
-                <Text style={styles.section}>Recent activity</Text>
-                <Text style={styles.viewAll}>See all</Text>
-              </Pressable>
-              {recent.slice(0, 2).map((item) => (
-                <Pressable
-                  key={item.tracking_id}
-                  style={styles.recent}
-                  onPress={() =>
-                    router.push(`/client/track/${item.tracking_id}` as never)
-                  }
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.recentId}>{item.tracking_id}</Text>
-                    <Text style={styles.recentAddr} numberOfLines={1}>
-                      {shortAddress(item.delivery_address)}
-                    </Text>
-                  </View>
-                  <Text style={styles.recentFee}>
-                    {formatCurrency(item.estimated_fee)}
-                  </Text>
-                </Pressable>
-              ))}
-            </>
+          <Text style={styles.section}>Suggested places</Text>
+          {suggestions.map((item) => (
+            <Pressable
+              key={item.address}
+              style={styles.suggestion}
+              onPress={() => router.push("/client/book")}
+            >
+              <View style={styles.suggestionIcon}>
+                <Ionicons name="location" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.suggestionTitle}>{item.label}</Text>
+                <Text style={styles.suggestionAddr} numberOfLines={1}>
+                  {item.address}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+
+          {recent[0] ? (
+            <Pressable
+              style={styles.recent}
+              onPress={() =>
+                router.push(`/client/track/${recent[0].tracking_id}` as never)
+              }
+            >
+              <Text style={styles.recentLabel}>Last delivery</Text>
+              <Text style={styles.recentValue}>
+                {recent[0].tracking_id} ·{" "}
+                {formatCurrency(recent[0].estimated_fee)}
+              </Text>
+            </Pressable>
           ) : null}
         </ScrollView>
       }
@@ -338,62 +296,58 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    gap: 10,
   },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  roundBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  brandPill: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  brandText: {
+    fontWeight: "900",
+    color: colors.dark,
+    letterSpacing: 0.3,
+    fontSize: 13,
+  },
+  sosBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  cityRow: { gap: 8, paddingHorizontal: 2, alignItems: "center" },
-  cityPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.white,
+  sheetBody: { gap: 12, paddingBottom: 6 },
+  hello: { fontSize: 22, fontWeight: "900", color: colors.dark },
+  helloSub: { color: colors.muted, fontSize: 14, marginTop: -6 },
+  cities: { gap: 8 },
+  cityChip: {
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  cityPillOn: { backgroundColor: colors.dark, borderColor: colors.dark },
+  cityChipOn: { backgroundColor: colors.dark, borderColor: colors.dark },
   cityText: { fontWeight: "800", fontSize: 12, color: colors.dark },
   cityTextOn: { color: colors.white },
-  sosBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sheetScroll: { maxHeight: 460 },
-  sheetInner: { gap: 12, paddingBottom: 8 },
-  greetRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  greet: { fontSize: 20, fontWeight: "900", color: colors.dark },
-  sub: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: "600" },
-  avail: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primarySoft,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  availDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  availText: { fontWeight: "800", fontSize: 11, color: colors.primaryDark },
   activeCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -402,12 +356,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
   },
-  activeLabel: {
+  activeEyebrow: {
     color: colors.secondary,
     fontSize: 10,
     fontWeight: "900",
     textTransform: "uppercase",
-    letterSpacing: 0.7,
+    letterSpacing: 0.6,
   },
   activeId: {
     color: colors.white,
@@ -415,102 +369,98 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 2,
   },
-  activeAddr: { color: "rgba(255,255,255,0.65)", fontSize: 12, marginTop: 2 },
+  activeAddr: { color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 2 },
   whereTo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#f3f3f1",
+    backgroundColor: "#ecece8",
     borderRadius: 18,
     padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
+    minHeight: 64,
   },
-  searchIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  searchBubble: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
   },
-  whereTitle: { fontSize: 17, fontWeight: "900", color: colors.dark },
+  whereTitle: { fontSize: 18, fontWeight: "900", color: colors.dark },
   whereHint: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  laterChip: {
+  later: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     backgroundColor: colors.white,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   laterText: { fontWeight: "800", fontSize: 12, color: colors.dark },
-  serviceRow: { gap: 10 },
-  serviceChip: {
-    width: 88,
+  serviceRow: { flexDirection: "row", gap: 8 },
+  service: {
+    flex: 1,
+    alignItems: "center",
+    gap: 6,
     backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 12,
-    paddingHorizontal: 10,
-    alignItems: "center",
-    gap: 8,
   },
   serviceIcon: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  serviceTitle: { fontWeight: "800", fontSize: 12, color: colors.dark },
+  serviceLabel: { fontWeight: "800", fontSize: 11, color: colors.dark },
   section: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.6,
+    letterSpacing: 0.7,
   },
-  sectionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  viewAll: { color: colors.primary, fontWeight: "800", fontSize: 12 },
-  suggestions: { gap: 8 },
   suggestion: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   suggestionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },
   suggestionTitle: { fontWeight: "800", color: colors.dark, fontSize: 14 },
-  suggestionAddr: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  suggestionAddr: { color: colors.muted, fontSize: 12, marginTop: 1 },
   recent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 6,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  recentId: {
-    fontFamily: "monospace",
+  recentLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  recentValue: {
+    marginTop: 4,
     fontWeight: "800",
     color: colors.dark,
-    fontSize: 13,
+    fontFamily: "monospace",
   },
-  recentAddr: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  recentFee: { color: colors.primary, fontWeight: "900" },
 });

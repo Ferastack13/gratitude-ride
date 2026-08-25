@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-/** Full-bleed map canvas with floating top + bottom sheet overlays (Uber/Bolt style). */
+/**
+ * Map on top + sheet in normal layout flow (not absolute over the tab bar).
+ * This keeps Home / Book / Deliveries / Profile fully tappable.
+ */
 export function MapShell({
   map,
   top,
@@ -15,15 +18,17 @@ export function MapShell({
 }) {
   return (
     <View style={styles.root}>
-      {map}
-      <SafeAreaView style={styles.overlay} edges={["top"]} pointerEvents="box-none">
-        {top ? <View style={styles.top}>{top}</View> : null}
-      </SafeAreaView>
-      <View style={styles.bottomSafe} pointerEvents="box-none">
-        <View style={styles.sheet} pointerEvents="auto">
-          {sheet}
-        </View>
+      <View style={styles.mapPane}>
+        {map}
+        <SafeAreaView
+          style={styles.topOverlay}
+          edges={["top"]}
+          pointerEvents="box-none"
+        >
+          {top ? <View style={styles.top}>{top}</View> : null}
+        </SafeAreaView>
       </View>
+      <View style={styles.sheet}>{sheet}</View>
     </View>
   );
 }
@@ -36,10 +41,14 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.surface,
-    // Clip Android elevation so the sheet cannot steal tab-bar taps.
+  },
+  mapPane: {
+    flex: 1,
+    minHeight: 180,
+    position: "relative",
     overflow: "hidden",
   },
-  overlay: {
+  topOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -48,28 +57,20 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   top: { paddingHorizontal: 16, paddingTop: 8 },
-  bottomSafe: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 2,
-  },
   sheet: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    marginTop: -18,
     paddingHorizontal: 18,
     paddingTop: 10,
-    paddingBottom: 14,
+    paddingBottom: 12,
     gap: 12,
     borderWidth: 1,
+    borderBottomWidth: 0,
     borderColor: colors.border,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -3 },
+    maxHeight: "52%",
+    zIndex: 2,
   },
   handle: {
     alignSelf: "center",

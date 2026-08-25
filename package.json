@@ -1,0 +1,11 @@
+{
+  "name": "gratituderide-workspace",
+  "private": true,
+  "scripts": {
+    "mobile": "npm --prefix mobile run start",
+    "mobile:android": "npm --prefix mobile run android",
+    "mobile:ios": "npm --prefix mobile run ios",
+    "mobile:web": "npm --prefix mobile run web",
+    "web": "npm --prefix gratituderide2-main run dev"
+  }
+}

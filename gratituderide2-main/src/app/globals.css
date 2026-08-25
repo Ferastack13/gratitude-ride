@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #16a34a;
+  --color-primary-dark: #15803d;
+  --color-primary-light: #22c55e;
+  --color-secondary: #facc15;
+  --color-secondary-dark: #eab308;
+  --color-accent: #ffffff;
+  --color-dark: #0f0f0f;
+  --color-dark-surface: #1a1a1a;
+  --color-dark-elevated: #262626;
+  --color-dark-border: #333333;
+  --color-muted: #737373;
+  --color-muted-light: #a3a3a3;
+  --color-surface: #f7f7f5;
+  --color-surface-elevated: #ffffff;
+  --color-border: #e8e8e4;
+  --color-danger: #ef4444;
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 40px rgba(22, 163, 74, 0.25);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-surface text-dark font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary-dark;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-dark-surface/80 backdrop-blur-xl border border-white/10;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-secondary via-[#fde047] to-secondary-dark bg-clip-text text-transparent;
+  }
+
+  .bg-gradient-brand {
+    @apply bg-gradient-to-br from-primary via-primary-light to-primary-dark;
+  }
+
+  .bg-gradient-hero {
+    @apply bg-gradient-to-br from-dark via-dark-surface to-dark-elevated;
+  }
+
+  .lightning-glow {
+    box-shadow: 0 0 60px rgba(22, 163, 74, 0.3),
+      0 0 120px rgba(250, 204, 21, 0.1);
+  }
+
+  .section-padding {
+    @apply px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24;
+  }
+
+  .container-app {
+    @apply max-w-7xl mx-auto w-full;
+  }
+
+  .font-display {
+    font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  }
+}

@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env*.example
+
+# Expo / Next
+.expo/
+dist/
+web-build/
+.next/
+out/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+ios/
+android/
+
+# Logs / OS
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+*.tsbuildinfo
+.metro-health-check*
+
+# IDE
+.vscode/
+.idea/

@@ -1,5 +1,6 @@
 import { colors, radii } from "@/constants/theme";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 export type MapPoint = {
   lat: number;
@@ -14,151 +15,105 @@ type Props = {
   dropoff?: MapPoint;
   hubs?: MapPoint[];
   height?: number;
-  /** Fill the parent map pane (flex layout) — does not cover the tab bar. */
   fullBleed?: boolean;
   delta?: number;
-  /** When false, map ignores gestures (fixes Android tab-bar touch theft). */
   interactive?: boolean;
+  live?: boolean;
+  showsUserLocation?: boolean;
 };
+
+function zoomFromDelta(delta?: number) {
+  const d = delta ?? 0.08;
+  if (d <= 0.02) return 15;
+  if (d <= 0.05) return 14;
+  if (d <= 0.1) return 13;
+  return 12;
+}
+
+/**
+ * Live street map via OSM static tiles image.
+ * Avoids react-native-maps (needs Google key) and WebView html
+ * (crashes Expo Go on Android with JSBigFileString::fromPath).
+ */
+function buildMapUri(
+  center: { lat: number; lng: number },
+  markers: { lat: number; lng: number; color: string }[],
+  zoom: number
+) {
+  const markerParams = markers
+    .slice(0, 3)
+    .map((m) => `${m.lat},${m.lng},${m.color}`)
+    .join("|");
+  return (
+    "https://staticmap.openstreetmap.de/staticmap.php?" +
+    `center=${center.lat},${center.lng}` +
+    `&zoom=${zoom}` +
+    `&size=720x1100` +
+    `&maptype=mapnik` +
+    (markerParams ? `&markers=${markerParams}` : "")
+  );
+}
 
 export function RouteMap({
   center,
   pickup,
   dropoff,
-  hubs = [],
   height = 220,
   fullBleed = false,
   delta = 0.08,
-  interactive = true,
 }: Props) {
-  if (Platform.OS === "web") {
-    return (
-      <MapFallback
-        height={fullBleed ? undefined : height}
-        fullBleed={fullBleed}
-        pickup={pickup}
-        dropoff={dropoff}
-        hubs={hubs}
-      />
-    );
-  }
+  const mapCenter = useMemo(() => {
+    if (pickup && dropoff) {
+      return {
+        lat: (pickup.lat + dropoff.lat) / 2,
+        lng: (pickup.lng + dropoff.lng) / 2,
+      };
+    }
+    return center;
+  }, [center.lat, center.lng, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng]);
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Maps = require("react-native-maps");
-    const MapView = Maps.default;
-    const Marker = Maps.Marker;
-    const Polyline = Maps.Polyline;
-    const coords = [pickup, dropoff].filter(Boolean) as MapPoint[];
+  const uri = useMemo(() => {
+    const markers: { lat: number; lng: number; color: string }[] = [
+      { lat: center.lat, lng: center.lng, color: "lightblue1" },
+    ];
+    if (pickup) {
+      markers.push({ lat: pickup.lat, lng: pickup.lng, color: "green" });
+    }
+    if (dropoff) {
+      markers.push({ lat: dropoff.lat, lng: dropoff.lng, color: "orange" });
+    }
+    return buildMapUri(mapCenter, markers, zoomFromDelta(delta));
+  }, [
+    mapCenter.lat,
+    mapCenter.lng,
+    center.lat,
+    center.lng,
+    pickup?.lat,
+    pickup?.lng,
+    dropoff?.lat,
+    dropoff?.lng,
+    delta,
+  ]);
 
-    return (
-      <View
-        style={[
-          fullBleed ? styles.full : styles.shell,
-          !fullBleed ? { height } : null,
-        ]}
-        pointerEvents={interactive ? "auto" : "none"}
-        collapsable={false}
-      >
-        <MapView
-          style={StyleSheet.absoluteFill}
-          initialRegion={{
-            latitude: center.lat,
-            longitude: center.lng,
-            latitudeDelta: delta,
-            longitudeDelta: delta,
-          }}
-          showsUserLocation={interactive}
-          showsMyLocationButton={false}
-          scrollEnabled={interactive}
-          zoomEnabled={interactive}
-          rotateEnabled={false}
-          pitchEnabled={false}
-          toolbarEnabled={false}
-          moveOnMarkerPress={false}
-          liteMode={Platform.OS === "android" && !interactive}
-        >
-          {hubs.map((hub, index) => (
-            <Marker
-              key={`hub-${index}-${hub.lat}`}
-              coordinate={{ latitude: hub.lat, longitude: hub.lng }}
-              title={hub.label}
-              pinColor={colors.primaryGlow}
-              opacity={0.9}
-            />
-          ))}
-          {pickup ? (
-            <Marker
-              coordinate={{ latitude: pickup.lat, longitude: pickup.lng }}
-              title={pickup.label ?? "Pickup"}
-              pinColor={colors.primary}
-            />
-          ) : null}
-          {dropoff ? (
-            <Marker
-              coordinate={{ latitude: dropoff.lat, longitude: dropoff.lng }}
-              title={dropoff.label ?? "Drop-off"}
-              pinColor={colors.secondary}
-            />
-          ) : null}
-          {coords.length === 2 ? (
-            <Polyline
-              coordinates={coords.map((p) => ({
-                latitude: p.lat,
-                longitude: p.lng,
-              }))}
-              strokeColor={colors.primary}
-              strokeWidth={4}
-            />
-          ) : null}
-        </MapView>
-      </View>
-    );
-  } catch {
-    return (
-      <MapFallback
-        height={fullBleed ? undefined : height}
-        fullBleed={fullBleed}
-        pickup={pickup}
-        dropoff={dropoff}
-        hubs={hubs}
-      />
-    );
-  }
-}
-
-function MapFallback({
-  height,
-  fullBleed,
-  pickup,
-  dropoff,
-  hubs = [],
-}: {
-  height?: number;
-  fullBleed?: boolean;
-  pickup?: MapPoint;
-  dropoff?: MapPoint;
-  hubs?: MapPoint[];
-}) {
   return (
     <View
       style={[
-        styles.fallback,
-        fullBleed ? styles.fullFallback : null,
-        height ? { height } : null,
+        fullBleed ? styles.full : styles.shell,
+        !fullBleed ? { height } : null,
       ]}
+      collapsable={false}
     >
-      <View style={styles.grid} />
-      <Text style={styles.fallbackTitle}>Live coverage map</Text>
-      <Text style={styles.hubCount}>{hubs.length} hubs nearby</Text>
-      {pickup ? (
-        <Text style={styles.pinGreen}>● Pickup · {pickup.label ?? "Origin"}</Text>
-      ) : null}
-      {dropoff ? (
-        <Text style={styles.pinGold}>
-          ● Drop-off · {dropoff.label ?? "Destination"}
-        </Text>
-      ) : null}
+      <Image
+        key={uri}
+        source={{ uri }}
+        style={styles.map}
+        resizeMode="cover"
+        accessibilityLabel="Live location map"
+      />
+      <View style={styles.badge} pointerEvents="none">
+        <View style={styles.dot} />
+        <Text style={styles.badgeText}>Live map</Text>
+      </View>
     </View>
   );
 }
@@ -171,42 +126,42 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  // Fill parent map pane only — never position against the window/tab bar.
   full: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
+    width: "100%",
+    minHeight: 220,
+    overflow: "hidden",
+    backgroundColor: "#dbe7e0",
   },
-  fullFallback: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  map: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#dbe7e0",
   },
-  fallback: {
-    borderRadius: radii.lg,
+  badge: {
+    position: "absolute",
+    left: 12,
+    bottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "#e8f5ee",
-    padding: 18,
-    justifyContent: "center",
-    gap: 8,
-    overflow: "hidden",
   },
-  grid: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.35,
-    backgroundColor: "#d1fae5",
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
-  fallbackTitle: { fontWeight: "800", color: colors.dark, fontSize: 15 },
-  hubCount: { color: colors.primaryDark, fontWeight: "700", fontSize: 12 },
-  pinGreen: { color: colors.primaryDark, fontWeight: "700", fontSize: 13 },
-  pinGold: { color: colors.secondaryDark, fontWeight: "700", fontSize: 13 },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.dark,
+  },
 });

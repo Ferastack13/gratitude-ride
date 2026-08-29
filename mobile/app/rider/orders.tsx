@@ -5,7 +5,7 @@ import { JobOfferModal } from "@/components/workflow/JobOfferModal";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { getCityConfig, type ServiceCity } from "@/lib/cities";
+import { getCityConfig } from "@/lib/cities";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +22,7 @@ import {
 
 export default function RiderOrdersScreen() {
   const { profile } = useAuth();
-  const [city, setCity] = useState<ServiceCity>("Lagos");
+  const [city, setCity] = useState("Lagos");
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

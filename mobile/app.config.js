@@ -1,13 +1,5 @@
 const appJson = require("./app.json");
 
-// Load mobile/.env so Maps / Supabase keys are available when Expo evaluates config.
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require("dotenv").config({ path: require("path").join(__dirname, ".env") });
-} catch {
-  // dotenv is optional; Expo CLI also injects EXPO_PUBLIC_* from .env
-}
-
 module.exports = ({ config }) => {
   const googleMapsApiKey = (
     process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || ""
@@ -22,14 +14,10 @@ module.exports = ({ config }) => {
     ],
   };
 
-  // Only inject a Maps key when set. An empty string overrides Expo Go's
-  // built-in key and produces a blank map with only the Google logo.
   if (googleMapsApiKey) {
     android.config = {
       ...(appJson.expo.android?.config || {}),
-      googleMaps: {
-        apiKey: googleMapsApiKey,
-      },
+      googleMaps: { apiKey: googleMapsApiKey },
     };
   }
 

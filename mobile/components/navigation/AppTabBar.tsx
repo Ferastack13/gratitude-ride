@@ -8,25 +8,37 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 const ICONS: Record<string, IconName> = {
-  index: "home",
-  book: "cube",
-  deliveries: "map",
-  profile: "menu",
-  // rider / driver
+  index: "home-outline",
+  book: "cube-outline",
+  deliveries: "map-outline",
+  profile: "menu-outline",
   orders: "diamond-outline",
   earnings: "cash-outline",
   inbox: "mail-outline",
-  // passenger
   services: "grid-outline",
   activity: "receipt-outline",
   account: "person-outline",
-  // business
   bookings: "briefcase-outline",
   team: "people-outline",
   billing: "card-outline",
 };
 
-/** Only these route names may appear in the tab bar (defense in depth). */
+const FILLED: Partial<Record<IconName, IconName>> = {
+  "home-outline": "home",
+  "grid-outline": "grid",
+  "receipt-outline": "receipt",
+  "person-outline": "person",
+  "diamond-outline": "diamond",
+  "cash-outline": "cash",
+  "mail-outline": "mail",
+  "briefcase-outline": "briefcase",
+  "people-outline": "people",
+  "card-outline": "card",
+  "cube-outline": "cube",
+  "map-outline": "map",
+  "menu-outline": "menu",
+};
+
 const TAB_ROUTE_ALLOWLIST = new Set([
   "index",
   "services",
@@ -46,12 +58,11 @@ const TAB_ROUTE_ALLOWLIST = new Set([
 /** Android-safe tab bar — sits above MapView and always receives taps. */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 8 : 0);
+  const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 4);
 
   const tabs = state.routes.filter((route) => {
     const opts = descriptors[route.key]?.options as { href?: unknown };
     if (opts?.href === null) return false;
-    // Never show booking-flow screens even if mis-registered as tabs
     if (
       route.name === "where-to" ||
       route.name === "plan" ||
@@ -67,7 +78,6 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
     <View
       style={[styles.wrap, { paddingBottom: bottomPad }]}
       collapsable={false}
-      // Force this native view above Google Maps touch overlay on Android.
       renderToHardwareTextureAndroid
     >
       <View style={styles.row} collapsable={false}>
@@ -82,28 +92,13 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 ? "Home"
                 : route.name;
 
-          const color = focused ? colors.primary : colors.muted;
-          const iconName =
+          const outline =
             route.name === "index" && label === "Hub"
-              ? "bicycle"
-              : ICONS[route.name] ?? "ellipse";
-          const filled: Record<string, IconName> = {
-            home: "home",
-            "grid-outline": "grid",
-            "receipt-outline": "receipt",
-            "person-outline": "person",
-            "diamond-outline": "diamond",
-            "cash-outline": "cash",
-            "mail-outline": "mail",
-            "briefcase-outline": "briefcase",
-            "people-outline": "people",
-            "card-outline": "card",
-            cube: "cube",
-            map: "map",
-            menu: "menu",
-          };
+              ? ("bicycle-outline" as IconName)
+              : ICONS[route.name] ?? ("ellipse-outline" as IconName);
           const displayIcon =
-            focused && filled[iconName] ? filled[iconName] : iconName;
+            focused && FILLED[outline] ? FILLED[outline]! : outline;
+          const color = focused ? colors.primary : colors.mutedLight;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -124,11 +119,11 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
               accessibilityState={focused ? { selected: true } : {}}
               accessibilityLabel={label}
               onPress={onPress}
-              hitSlop={10}
+              hitSlop={12}
               android_ripple={{ color: colors.primarySoft, borderless: true }}
               style={({ pressed }) => [
                 styles.item,
-                pressed && { opacity: 0.75 },
+                pressed && { opacity: 0.7 },
               ]}
             >
               <Ionicons name={displayIcon} size={22} color={color} />
@@ -155,34 +150,35 @@ export const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 84 : 64;
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.white,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
-    elevation: 24,
+    elevation: 12,
     zIndex: 10000,
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: -4 },
+    shadowColor: "#101828",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -2 },
   },
   row: {
-    minHeight: 56,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    paddingTop: 6,
+    paddingTop: 8,
   },
   item: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 3,
     paddingVertical: 4,
+    minHeight: 48,
   },
   label: {
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "500",
   },
   labelOn: {
-    fontWeight: "800",
+    fontWeight: "600",
   },
 });

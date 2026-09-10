@@ -1,4 +1,4 @@
-import { colors, radii, shadows } from "@/constants/theme";
+import { colors, radii } from "@/constants/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -100,21 +100,21 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   sm: { minHeight: 42, paddingHorizontal: 14 },
   lg: { minHeight: 58, paddingHorizontal: 24 },
-  primary: { backgroundColor: colors.primary, ...shadows.card },
+  primary: { backgroundColor: colors.primary },
   secondary: { backgroundColor: colors.secondary },
   ghost: { backgroundColor: "transparent" },
   outline: {
     backgroundColor: colors.white,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.border,
   },
   danger: { backgroundColor: colors.danger },
   dark: { backgroundColor: colors.dark },
   pressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   disabled: { opacity: 0.45 },
-  label: { color: colors.white, fontSize: 16, fontWeight: "800" },
+  label: { color: colors.white, fontSize: 16, fontWeight: "600" },
   smLabel: { fontSize: 14 },
-  lgLabel: { fontSize: 17 },
+  lgLabel: { fontSize: 16 },
   secondaryLabel: { color: colors.dark },
   ghostLabel: { color: colors.primary },
   outlineLabel: { color: colors.dark },

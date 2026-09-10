@@ -8,15 +8,16 @@ export const colors = {
   secondarySoft: "#FFF8E1",
   success: "#16A34A",
   successSoft: "#DCFCE7",
-  dark: "#0B1220",
+  dark: "#101828",
   darkSurface: "#111827",
   darkElevated: "#1F2937",
   muted: "#667085",
   mutedLight: "#98A2B3",
-  surface: "#F7F9FC",
-  surfaceAlt: "#EEF2F7",
+  /** App canvas — near-white to avoid grey “card farm” look */
+  surface: "#FFFFFF",
+  surfaceAlt: "#F2F4F7",
   white: "#FFFFFF",
-  border: "#E4E7EC",
+  border: "#EAECF0",
   danger: "#EF4444",
   dangerSoft: "#FEF2F2",
   warning: "#F59E0B",
@@ -37,48 +38,96 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 24,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 22,
   xxl: 28,
   full: 999,
 } as const;
 
+/** Use sparingly — prefer flat surfaces + spacing. */
 export const shadows = {
   card: {
-    shadowColor: "#0B1220",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowColor: "#101828",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   float: {
-    shadowColor: "#0B1220",
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  soft: {
-    shadowColor: "#1D61E7",
-    shadowOpacity: 0.12,
+    shadowColor: "#101828",
+    shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
+  soft: {
+    shadowColor: "#1D61E7",
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
 } as const;
 
+/**
+ * Passenger typography — modern system UI weights.
+ * Prefer 600/700 for emphasis; reserve 800 for rare brand moments.
+ */
 export const typography = {
-  display: { fontSize: 30, fontWeight: "900" as const, letterSpacing: -0.7 },
-  title: { fontSize: 24, fontWeight: "800" as const, letterSpacing: -0.4 },
-  subtitle: { fontSize: 14, fontWeight: "500" as const, color: colors.muted },
-  label: { fontSize: 13, fontWeight: "700" as const, color: colors.dark },
-  caption: {
-    fontSize: 12,
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    letterSpacing: -0.5,
+    color: colors.dark,
+  },
+  section: {
+    fontSize: 15,
     fontWeight: "600" as const,
+    color: colors.dark,
+  },
+  body: {
+    fontSize: 15,
+    fontWeight: "400" as const,
+    color: colors.dark,
+    lineHeight: 22,
+  },
+  bodyStrong: {
+    fontSize: 15,
+    fontWeight: "600" as const,
+    color: colors.dark,
+  },
+  supporting: {
+    fontSize: 13,
+    fontWeight: "400" as const,
+    color: colors.muted,
+    lineHeight: 18,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "500" as const,
     color: colors.muted,
     letterSpacing: 0.2,
   },
-  mono: { fontFamily: "monospace" as const, fontWeight: "800" as const },
+  cta: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+  },
+  brand: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: colors.primary,
+    letterSpacing: 0.6,
+    textTransform: "uppercase" as const,
+  },
+  display: { fontSize: 28, fontWeight: "700" as const, letterSpacing: -0.5 },
+  title: { fontSize: 22, fontWeight: "700" as const, letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, fontWeight: "400" as const, color: colors.muted },
+  caption: {
+    fontSize: 12,
+    fontWeight: "400" as const,
+    color: colors.muted,
+  },
+  mono: { fontFamily: "System" as const, fontWeight: "600" as const },
 };

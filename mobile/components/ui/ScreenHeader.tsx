@@ -47,9 +47,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: "900",
+    fontWeight: "700",
     color: colors.dark,
     letterSpacing: -0.5,
   },
-  sub: { fontSize: 13, color: colors.muted, marginTop: 2, fontWeight: "500" },
+  sub: { fontSize: 13, color: colors.muted, marginTop: 2, fontWeight: "400" },
 });

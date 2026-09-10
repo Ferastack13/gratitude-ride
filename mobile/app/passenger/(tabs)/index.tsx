@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
-import { colors, radii, shadows } from "@/constants/theme";
+import { RouteMap } from "@/components/maps/RouteMap";
+import { colors, radii, shadows, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { getRecentPlaces } from "@/lib/client-prefs";
 import {
@@ -11,7 +12,6 @@ import {
 import { placeParams, resolveCurrentLocation } from "@/lib/location";
 import type { LivePlace } from "@/lib/places";
 import { supabase } from "@/lib/supabase";
-import { LocationRow } from "@/components/passenger/LocationRow";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -124,7 +124,7 @@ export default function PassengerHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
-          <View>
+          <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.brand}>Gratitude Ride</Text>
             <Text style={styles.hello}>
               {greeting}, {first}
@@ -138,28 +138,26 @@ export default function PassengerHomeScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.where,
-            pressed && { opacity: 0.94, transform: [{ scale: 0.99 }] },
+            pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] },
           ]}
           onPress={() => openWhereTo("dropoff")}
         >
-          <View style={styles.whereIcon}>
-            <Ionicons name="search" size={20} color={colors.white} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.whereText}>Where to?</Text>
-            <Text style={styles.whereHint}>Search destination or pick a recent place</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedLight} />
+          <Ionicons name="search" size={22} color={colors.dark} />
+          <Text style={styles.whereText}>Where to?</Text>
         </Pressable>
 
-        <Pressable style={styles.pickupCard} onPress={() => openWhereTo("pickup")}>
-          <View style={styles.pickupIcon}>
-            <Ionicons
-              name={pickup ? "locate" : "warning-outline"}
-              size={18}
-              color={pickup ? colors.primary : colors.warning}
-            />
-          </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.pickupRow,
+            pressed && { opacity: 0.85 },
+          ]}
+          onPress={() => openWhereTo("pickup")}
+        >
+          <Ionicons
+            name={pickup ? "locate-outline" : "alert-circle-outline"}
+            size={18}
+            color={pickup ? colors.primary : colors.warning}
+          />
           <View style={{ flex: 1 }}>
             <Text style={styles.pickupLabel}>Pickup</Text>
             {locating ? (
@@ -172,7 +170,7 @@ export default function PassengerHomeScreen() {
                 {pickup
                   ? pickup.title === "Current location"
                     ? "Current location"
-                    : `Current · ${pickup.title}`
+                    : pickup.title
                   : "Set pickup location"}
               </Text>
             )}
@@ -181,26 +179,38 @@ export default function PassengerHomeScreen() {
         </Pressable>
 
         {locMessage ? (
-          <Pressable style={styles.permCard} onPress={refreshLocation}>
+          <Pressable style={styles.permBanner} onPress={refreshLocation}>
             <Text style={styles.permTitle}>Location needed</Text>
             <Text style={styles.permBody}>{locMessage}</Text>
             <Text style={styles.permAction}>Try again</Text>
           </Pressable>
         ) : null}
 
+        {pickup && !locating ? (
+          <View style={styles.mapStrip}>
+            <RouteMap
+              center={{ lat: pickup.lat, lng: pickup.lng }}
+              pickup={{
+                lat: pickup.lat,
+                lng: pickup.lng,
+                label: "Pickup",
+              }}
+              height={132}
+              delta={0.035}
+            />
+          </View>
+        ) : null}
+
         {active ? (
           <Pressable
             style={({ pressed }) => [
-              styles.activeCard,
+              styles.activeBanner,
               pressed && { opacity: 0.92 },
             ]}
             onPress={() =>
               router.push(`/passenger/track/${active.tracking_id}` as never)
             }
           >
-            <View style={styles.activeIcon}>
-              <Ionicons name="navigate" size={18} color={colors.white} />
-            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.activeTitle}>Trip in progress</Text>
               <Text style={styles.activeAddr} numberOfLines={1}>
@@ -218,28 +228,37 @@ export default function PassengerHomeScreen() {
           </Pressable>
         ) : null}
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.section}>Recent</Text>
-        </View>
+        <Text style={styles.section}>Recent</Text>
         {recent.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="map-outline" size={22} color={colors.mutedLight} />
-            <Text style={styles.empty}>
-              Your recent destinations will appear here after you book.
-            </Text>
-          </View>
+          <Text style={styles.empty}>
+            Destinations you book will show up here for quick rebooking.
+          </Text>
         ) : (
-          <View style={styles.recentCard}>
-            {recent.slice(0, 5).map((place, i) => (
+          <View>
+            {recent.slice(0, 6).map((place, i) => (
               <View key={place.id}>
                 {i > 0 ? <View style={styles.divider} /> : null}
-                <LocationRow
-                  title={place.title}
-                  subtitle={place.address}
-                  icon="time-outline"
-                  tone="recent"
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.recentRow,
+                    pressed && { opacity: 0.75 },
+                  ]}
                   onPress={() => goRecent(place)}
-                />
+                >
+                  <Ionicons
+                    name="time-outline"
+                    size={20}
+                    color={colors.muted}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.recentTitle} numberOfLines={1}>
+                      {place.title}
+                    </Text>
+                    <Text style={styles.recentSub} numberOfLines={1}>
+                      {place.address}
+                    </Text>
+                  </View>
+                </Pressable>
               </View>
             ))}
           </View>
@@ -250,147 +269,138 @@ export default function PassengerHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  body: { paddingHorizontal: 20, paddingTop: 8, gap: 14, paddingBottom: 40 },
+  safe: { flex: 1, backgroundColor: colors.white },
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    gap: 0,
+  },
   topBar: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 22,
   },
-  brand: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.primary,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
+  brand: { ...typography.brand, marginBottom: 6 },
   hello: {
-    fontSize: 28,
-    fontWeight: "900",
+    fontSize: 26,
+    fontWeight: "700",
     color: colors.dark,
-    letterSpacing: -0.6,
-    marginTop: 2,
+    letterSpacing: -0.4,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { color: colors.white, fontWeight: "900", fontSize: 18 },
+  avatarText: {
+    color: colors.dark,
+    fontWeight: "600",
+    fontSize: 16,
+  },
   where: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    paddingHorizontal: 14,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.float,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.lg,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginBottom: 14,
   },
-  whereIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+  whereText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.dark,
+    letterSpacing: -0.2,
   },
-  whereText: { fontSize: 18, fontWeight: "900", color: colors.dark },
-  whereHint: { color: colors.muted, fontSize: 12, marginTop: 2, fontWeight: "600" },
-  pickupCard: {
+  pickupRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 10,
+    paddingVertical: 8,
+    marginBottom: 16,
   },
-  pickupIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
+  pickupLabel: { ...typography.label, marginBottom: 2 },
+  pickupValue: { ...typography.bodyStrong, fontSize: 14 },
+  pickupLoading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  edit: {
+    color: colors.primary,
+    fontWeight: "600",
+    fontSize: 14,
   },
-  pickupLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  pickupValue: { color: colors.dark, fontWeight: "700", fontSize: 13, marginTop: 1 },
-  pickupLoading: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  edit: { color: colors.primary, fontWeight: "800", fontSize: 13 },
-  permCard: {
+  permBanner: {
     backgroundColor: colors.warningSoft,
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: 14,
     gap: 4,
+    marginBottom: 16,
   },
-  permTitle: { fontWeight: "900", color: colors.dark },
-  permBody: { color: colors.muted, lineHeight: 18, fontSize: 13 },
-  permAction: { color: colors.primary, fontWeight: "800", marginTop: 4 },
-  activeCard: {
+  permTitle: { fontWeight: "600", color: colors.dark, fontSize: 14 },
+  permBody: { ...typography.supporting },
+  permAction: {
+    color: colors.primary,
+    fontWeight: "600",
+    marginTop: 4,
+    fontSize: 14,
+  },
+  mapStrip: {
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    marginBottom: 20,
+    backgroundColor: colors.surfaceAlt,
+  },
+  activeBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     backgroundColor: colors.primary,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     padding: 16,
+    marginBottom: 24,
     ...shadows.soft,
   },
-  activeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   activeTitle: {
-    fontWeight: "800",
-    color: "rgba(255,255,255,0.85)",
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.8)",
     fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+    marginBottom: 2,
   },
-  activeAddr: { fontWeight: "800", color: colors.white, marginTop: 2, fontSize: 14 },
-  activeFee: { color: "rgba(255,255,255,0.8)", marginTop: 2, fontWeight: "600", fontSize: 12 },
-  sectionRow: { marginTop: 6 },
-  section: { fontSize: 17, fontWeight: "900", color: colors.dark },
-  emptyBox: {
+  activeAddr: {
+    fontWeight: "600",
+    color: colors.white,
+    fontSize: 15,
+  },
+  activeFee: {
+    color: "rgba(255,255,255,0.75)",
+    marginTop: 4,
+    fontWeight: "400",
+    fontSize: 13,
+  },
+  section: {
+    ...typography.section,
+    marginBottom: 8,
+  },
+  empty: {
+    ...typography.supporting,
+    paddingVertical: 8,
+    paddingRight: 12,
+  },
+  recentRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 14,
+    paddingVertical: 14,
   },
-  empty: { flex: 1, color: colors.muted, lineHeight: 19, fontSize: 13 },
-  recentCard: {
-    backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    ...shadows.card,
-  },
+  recentTitle: { ...typography.bodyStrong },
+  recentSub: { ...typography.supporting, marginTop: 2 },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginLeft: 54,
+    marginLeft: 34,
   },
 });

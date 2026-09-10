@@ -1,7 +1,7 @@
 import { TripActivityCard } from "@/components/passenger/TripActivityCard";
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
-import { colors } from "@/constants/theme";
+import { colors, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import type { Delivery } from "@/lib/deliveries";
 import { supabase } from "@/lib/supabase";
@@ -67,7 +67,7 @@ export default function PassengerActivityScreen() {
     <Screen>
       <View style={styles.head}>
         <Text style={styles.title}>Activity</Text>
-        <Text style={styles.sub}>Your trips with Gratitude Ride</Text>
+        <Text style={styles.sub}>Your trips</Text>
       </View>
 
       {rows.length === 0 ? (
@@ -115,21 +115,15 @@ export default function PassengerActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  head: { gap: 4, marginBottom: 4 },
-  title: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: colors.dark,
-    letterSpacing: -0.5,
-  },
-  sub: { color: colors.muted, fontSize: 14, fontWeight: "600" },
-  list: { gap: 12 },
+  head: { gap: 4, marginBottom: 8 },
+  title: { ...typography.pageTitle },
+  sub: { ...typography.supporting, fontSize: 14 },
+  list: { gap: 4 },
   section: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.muted,
+    marginTop: 16,
+    marginBottom: 4,
+    ...typography.label,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
 });

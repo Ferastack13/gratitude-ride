@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
-import { colors, radii, shadows } from "@/constants/theme";
+import { colors, typography } from "@/constants/theme";
 import type { Delivery } from "@/lib/deliveries";
 import {
   formatCurrency,
@@ -8,7 +8,6 @@ import {
   statusTone,
 } from "@/lib/format";
 import { rideTypeFromNotes } from "@/lib/ride-matching";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const ACTIVE = new Set(["pending", "accepted", "picked_up", "in_transit"]);
@@ -33,62 +32,47 @@ export function TripActivityCard({ delivery, onPress }: Props) {
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.card,
-        active && styles.cardActive,
-        pressed && { opacity: 0.92 },
+        styles.row,
+        active && styles.rowActive,
+        pressed && { opacity: 0.75 },
       ]}
     >
-      <View style={styles.top}>
-        <View style={[styles.badgeIcon, active && styles.badgeIconOn]}>
-          <Ionicons
-            name={active ? "navigate" : "checkmark-circle"}
-            size={18}
-            color={active ? colors.primary : colors.success}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.route} numberOfLines={1}>
-            {shortAddress(delivery.pickup_address)} →{" "}
-            {shortAddress(delivery.delivery_address)}
-          </Text>
-          <Text style={styles.meta}>
-            {rideTypeFromNotes(delivery.notes)} ·{" "}
-            {formatCurrency(delivery.estimated_fee)}
-            {when ? ` · ${when}` : ""}
-          </Text>
-        </View>
-        <Badge
-          label={formatStatus(delivery.status)}
-          tone={statusTone(delivery.status)}
-        />
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={styles.route} numberOfLines={1}>
+          {shortAddress(delivery.pickup_address)} →{" "}
+          {shortAddress(delivery.delivery_address)}
+        </Text>
+        <Text style={styles.meta}>
+          {rideTypeFromNotes(delivery.notes)} ·{" "}
+          {formatCurrency(delivery.estimated_fee)}
+          {when ? ` · ${when}` : ""}
+        </Text>
       </View>
+      <Badge
+        label={formatStatus(delivery.status)}
+        tone={statusTone(delivery.status)}
+      />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    ...shadows.card,
-  },
-  cardActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  top: { flexDirection: "row", alignItems: "center", gap: 12 },
-  badgeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceAlt,
+  row: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  badgeIconOn: { backgroundColor: colors.white },
-  route: { fontWeight: "800", color: colors.dark, fontSize: 14 },
-  meta: { color: colors.muted, fontSize: 12, fontWeight: "600", marginTop: 3 },
+  rowActive: {
+    backgroundColor: colors.primarySoft,
+    marginHorizontal: -12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderBottomWidth: 0,
+    marginBottom: 4,
+  },
+  route: { ...typography.bodyStrong, fontSize: 14 },
+  meta: { ...typography.supporting, fontSize: 12 },
 });

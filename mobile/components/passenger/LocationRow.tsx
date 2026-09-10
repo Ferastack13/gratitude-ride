@@ -11,13 +11,6 @@ type Props = {
   trailing?: string;
 };
 
-const TONE_BG = {
-  pickup: colors.primarySoft,
-  dropoff: colors.secondarySoft,
-  recent: colors.surfaceAlt,
-  gps: colors.primarySoft,
-} as const;
-
 const TONE_FG = {
   pickup: colors.primary,
   dropoff: colors.secondaryDark,
@@ -36,9 +29,7 @@ export function LocationRow({
 }: Props) {
   const body = (
     <View style={styles.row}>
-      <View style={[styles.icon, { backgroundColor: TONE_BG[tone] }]}>
-        <Ionicons name={icon} size={18} color={TONE_FG[tone]} />
-      </View>
+      <Ionicons name={icon} size={20} color={TONE_FG[tone]} />
       <View style={{ flex: 1 }}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
@@ -57,7 +48,7 @@ export function LocationRow({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.press, pressed && { opacity: 0.88 }]}
+      style={({ pressed }) => [styles.press, pressed && { opacity: 0.7 }]}
     >
       {body}
     </Pressable>
@@ -66,23 +57,22 @@ export function LocationRow({
 
 const styles = StyleSheet.create({
   press: {
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
-  icon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
+  title: { fontWeight: "500", color: colors.dark, fontSize: 15 },
+  sub: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+    fontWeight: "400",
   },
-  title: { fontWeight: "800", color: colors.dark, fontSize: 15 },
-  sub: { color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 16 },
-  trailing: { color: colors.primary, fontWeight: "800", fontSize: 13 },
+  trailing: { color: colors.primary, fontWeight: "600", fontSize: 13 },
 });

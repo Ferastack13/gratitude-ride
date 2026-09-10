@@ -1,0 +1,14 @@
+---
+description: Always commit and push completed work to GitHub
+alwaysApply: true
+---
+
+# GitHub push habit
+
+After finishing a meaningful set of code changes the user asked for, **commit and push to GitHub** without waiting for a separate "push" request.
+
+- Follow the repo's existing commit message style.
+- Never push secrets (`.env`, credentials).
+- Do not force-push to `main`/`master`.
+- If there is nothing to commit, skip.
+- Prefer one clear commit per completed task unless the user asks otherwise.

@@ -1,7 +1,7 @@
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Badge } from "@/components/ui/Badge";
 import { colors, radii } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import type { Delivery } from "@/lib/deliveries";
@@ -21,6 +21,14 @@ import {
   Text,
   View,
 } from "react-native";
+
+function rideTypeFromNotes(notes: string | null | undefined) {
+  const n = (notes ?? "").toLowerCase();
+  if (n.includes("express")) return "Express";
+  if (n.includes("comfort") || n.includes("care")) return "Comfort";
+  if (n.includes("standard") || n.includes("ride")) return "Standard";
+  return "Ride";
+}
 
 export default function PassengerActivityScreen() {
   const { profile } = useAuth();
@@ -72,7 +80,7 @@ export default function PassengerActivityScreen() {
           title="No trips yet"
           message="When you book a ride, it will show up here."
           actionLabel="Where to?"
-          onAction={() => router.push("/passenger" as never)}
+          onAction={() => router.push("/passenger/where-to" as never)}
         />
       ) : (
         rows.map((row) => (
@@ -80,7 +88,7 @@ export default function PassengerActivityScreen() {
             key={row.id}
             style={styles.row}
             onPress={() =>
-              router.push(`/passenger/track/${row.tracking_id}` as never)
+              router.push(`/passenger/trip/${row.tracking_id}` as never)
             }
           >
             <View style={{ flex: 1, gap: 4 }}>
@@ -89,7 +97,11 @@ export default function PassengerActivityScreen() {
                 {shortAddress(row.delivery_address)}
               </Text>
               <Text style={styles.meta}>
-                {row.city} · {formatCurrency(row.estimated_fee)}
+                {rideTypeFromNotes(row.notes)} ·{" "}
+                {formatCurrency(row.estimated_fee)}
+                {row.created_at
+                  ? ` · ${new Date(row.created_at).toLocaleString()}`
+                  : ""}
               </Text>
             </View>
             <Badge

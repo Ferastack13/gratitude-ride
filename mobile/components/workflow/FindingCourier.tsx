@@ -3,13 +3,17 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 
-/** Post-book matching theater — “connecting to courier”. */
+/** Post-book matching — searching for a nearby driver. */
 export function FindingCourier({
   city,
   trackingId,
+  title = "Finding your driver",
+  subtitle,
 }: {
   city: string;
   trackingId?: string;
+  title?: string;
+  subtitle?: string;
 }) {
   const pulse = useRef(new Animated.Value(0.6)).current;
 
@@ -34,13 +38,16 @@ export function FindingCourier({
 
   return (
     <View style={styles.wrap}>
-      <Animated.View style={[styles.ring, { opacity: pulse, transform: [{ scale: pulse }] }]} />
+      <Animated.View
+        style={[styles.ring, { opacity: pulse, transform: [{ scale: pulse }] }]}
+      />
       <View style={styles.icon}>
-        <Ionicons name="bicycle" size={28} color={colors.white} />
+        <Ionicons name="car" size={28} color={colors.white} />
       </View>
-      <Text style={styles.title}>Finding a courier</Text>
+      <Text style={styles.title}>{title}</Text>
       <Text style={styles.sub}>
-        Matching a verified rider near {city}. This usually takes under a minute.
+        {subtitle ??
+          `Matching a verified driver near ${city}. This usually takes under a minute.`}
       </Text>
       {trackingId ? <Text style={styles.id}>{trackingId}</Text> : null}
     </View>

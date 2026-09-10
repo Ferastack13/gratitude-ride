@@ -1,9 +1,19 @@
 import { colors, radii } from "@/constants/theme";
 import { buildTimeline, type Delivery } from "@/lib/deliveries";
+import type { DeliveryStatus } from "@/lib/format";
 import { StyleSheet, Text, View } from "react-native";
 
-export function StatusTimeline({ status }: { status: Delivery["status"] }) {
-  const steps = buildTimeline(status);
+export function StatusTimeline({
+  status,
+  labels,
+}: {
+  status: Delivery["status"];
+  labels?: Partial<Record<DeliveryStatus, string>>;
+}) {
+  const steps = buildTimeline(status).map((step) => ({
+    ...step,
+    label: labels?.[step.key as DeliveryStatus] ?? step.label,
+  }));
 
   return (
     <View style={styles.wrap}>

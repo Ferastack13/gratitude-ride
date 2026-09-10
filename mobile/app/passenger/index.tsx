@@ -1,17 +1,21 @@
-import { LivePlaceSearch } from "@/components/location/LivePlaceSearch";
+import { Badge } from "@/components/ui/Badge";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { getRecentPlaces, pushRecentPlace } from "@/lib/client-prefs";
-import { formatCurrency, formatStatus, shortAddress, statusTone } from "@/lib/format";
-import { reverseLivePlace, type LivePlace } from "@/lib/places";
+import { getRecentPlaces } from "@/lib/client-prefs";
+import {
+  formatCurrency,
+  formatStatus,
+  shortAddress,
+  statusTone,
+} from "@/lib/format";
+import { placeParams, resolveCurrentLocation } from "@/lib/location";
+import type { LivePlace } from "@/lib/places";
 import { supabase } from "@/lib/supabase";
-import { Badge } from "@/components/ui/Badge";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Modal,
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,59 +24,46 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const DEFAULT_PLACE: LivePlace = {
-  id: "lagos-default",
-  title: "Current area",
-  subtitle: "Lagos, Nigeria",
-  address: "Lagos Island, Lagos, Nigeria",
-  lat: 6.4541,
-  lng: 3.3947,
-  state: "Lagos",
-  city: "Lagos",
-};
-
-function placeParams(place: LivePlace, prefix: "pickup" | "dropoff") {
-  return {
-    [`${prefix}Lat`]: String(place.lat),
-    [`${prefix}Lng`]: String(place.lng),
-    [`${prefix}Title`]: place.title,
-    [`${prefix}Address`]: place.address,
-    [`${prefix}City`]: place.city || place.state || "Nigeria",
-  };
+function greetingForHour(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default function PassengerHomeScreen() {
   const { profile } = useAuth();
-  const [pickup, setPickup] = useState<LivePlace>(DEFAULT_PLACE);
-  const [whereOpen, setWhereOpen] = useState(false);
-  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickup, setPickup] = useState<LivePlace | null>(null);
+  const [locating, setLocating] = useState(true);
+  const [locMessage, setLocMessage] = useState<string | null>(null);
   const [recent, setRecent] = useState<LivePlace[]>([]);
   const [active, setActive] = useState<{
     tracking_id: string;
     status: string;
+    pickup_address: string;
     delivery_address: string;
     estimated_fee: number;
   } | null>(null);
 
   const first = profile?.full_name?.split(" ")[0] ?? "there";
+  const greeting = greetingForHour(new Date().getHours());
+
+  const refreshLocation = useCallback(async () => {
+    setLocating(true);
+    setLocMessage(null);
+    const res = await resolveCurrentLocation();
+    setLocating(false);
+    if (res.ok) {
+      setPickup(res.place);
+    } else {
+      setPickup(null);
+      setLocMessage(res.message);
+    }
+  }, []);
 
   useEffect(() => {
-    (async () => {
-      setRecent(await getRecentPlaces());
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") return;
-        const loc = await Location.getCurrentPositionAsync({});
-        const place = await reverseLivePlace(
-          loc.coords.latitude,
-          loc.coords.longitude
-        );
-        if (place) setPickup(place);
-      } catch {
-        // keep default
-      }
-    })();
-  }, []);
+    refreshLocation();
+    getRecentPlaces().then(setRecent).catch(() => undefined);
+  }, [refreshLocation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,7 +77,9 @@ export default function PassengerHomeScreen() {
         if (!client?.id) return;
         const { data } = await supabase
           .from("deliveries")
-          .select("tracking_id, status, delivery_address, estimated_fee")
+          .select(
+            "tracking_id, status, pickup_address, delivery_address, estimated_fee"
+          )
           .eq("client_id", client.id)
           .in("status", ["pending", "accepted", "picked_up", "in_transit"])
           .order("created_at", { ascending: false })
@@ -97,14 +90,26 @@ export default function PassengerHomeScreen() {
     }, [profile?.id])
   );
 
-  const goBook = async (dropoff: LivePlace) => {
-    await pushRecentPlace(dropoff);
-    setWhereOpen(false);
+  const openWhereTo = (focus: "pickup" | "dropoff" = "dropoff") => {
     router.push({
-      pathname: "/passenger/book",
+      pathname: "/passenger/where-to",
+      params: {
+        ...(pickup ? placeParams(pickup, "pickup") : {}),
+        focus,
+      },
+    } as never);
+  };
+
+  const goRecent = (place: LivePlace) => {
+    if (!pickup) {
+      openWhereTo("pickup");
+      return;
+    }
+    router.push({
+      pathname: "/passenger/plan",
       params: {
         ...placeParams(pickup, "pickup"),
-        ...placeParams(dropoff, "dropoff"),
+        ...placeParams(place, "dropoff"),
         serviceId: "standard",
       },
     } as never);
@@ -118,20 +123,48 @@ export default function PassengerHomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.brand}>Gratitude Ride</Text>
-        <Text style={styles.hello}>Hi {first}</Text>
+        <Text style={styles.hello}>
+          {greeting}, {first}
+        </Text>
 
-        <Pressable style={styles.where} onPress={() => setWhereOpen(true)}>
-          <Ionicons name="search" size={20} color={colors.dark} />
+        <Pressable style={styles.where} onPress={() => openWhereTo("dropoff")}>
+          <Ionicons name="search" size={22} color={colors.dark} />
           <Text style={styles.whereText}>Where to?</Text>
         </Pressable>
 
-        <Pressable style={styles.pickupRow} onPress={() => setPickupOpen(true)}>
-          <Ionicons name="locate" size={16} color={colors.primary} />
-          <Text style={styles.pickupText} numberOfLines={1}>
-            Pickup · {pickup.title}
-          </Text>
-          <Text style={styles.edit}>Edit</Text>
+        <Pressable style={styles.pickupRow} onPress={() => openWhereTo("pickup")}>
+          <Ionicons
+            name={pickup ? "locate" : "warning-outline"}
+            size={16}
+            color={pickup ? colors.primary : colors.warning}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pickupLabel}>Pickup</Text>
+            {locating ? (
+              <View style={styles.pickupLoading}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.pickupValue}>Detecting location…</Text>
+              </View>
+            ) : (
+              <Text style={styles.pickupValue} numberOfLines={1}>
+                {pickup
+                  ? pickup.title === "Current location"
+                    ? "Current location"
+                    : `Current · ${pickup.title}`
+                  : "Set pickup location"}
+              </Text>
+            )}
+          </View>
+          <Text style={styles.edit}>{pickup ? "Edit" : "Set"}</Text>
         </Pressable>
+
+        {locMessage ? (
+          <Pressable style={styles.permCard} onPress={refreshLocation}>
+            <Text style={styles.permTitle}>Location needed</Text>
+            <Text style={styles.permBody}>{locMessage}</Text>
+            <Text style={styles.permAction}>Try again / grant permission</Text>
+          </Pressable>
+        ) : null}
 
         {active ? (
           <Pressable
@@ -143,6 +176,7 @@ export default function PassengerHomeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.activeTitle}>Current trip</Text>
               <Text style={styles.activeAddr} numberOfLines={1}>
+                {shortAddress(active.pickup_address)} →{" "}
                 {shortAddress(active.delivery_address)}
               </Text>
               <Text style={styles.activeFee}>
@@ -156,17 +190,17 @@ export default function PassengerHomeScreen() {
           </Pressable>
         ) : null}
 
-        <Text style={styles.section}>Suggestions</Text>
+        <Text style={styles.section}>Recent destinations</Text>
         {recent.length === 0 ? (
           <Text style={styles.empty}>
-            Search a destination to start your first ride.
+            Tap Where to? and search your destination to start a ride.
           </Text>
         ) : (
           recent.slice(0, 5).map((place) => (
             <Pressable
               key={place.id}
               style={styles.suggest}
-              onPress={() => goBook(place)}
+              onPress={() => goRecent(place)}
             >
               <View style={styles.suggestIcon}>
                 <Ionicons name="time-outline" size={18} color={colors.primary} />
@@ -180,40 +214,15 @@ export default function PassengerHomeScreen() {
             </Pressable>
           ))
         )}
+
+        <View style={styles.tips}>
+          <Text style={styles.tipTitle}>Ride tips</Text>
+          <Text style={styles.tipBody}>
+            Confirm pickup and destination on the map, then choose Standard,
+            Express, or Comfort before requesting.
+          </Text>
+        </View>
       </ScrollView>
-
-      <Modal visible={whereOpen} animationType="slide">
-        <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHead}>
-            <Text style={styles.modalTitle}>Where to?</Text>
-            <Pressable onPress={() => setWhereOpen(false)}>
-              <Text style={styles.close}>Close</Text>
-            </Pressable>
-          </View>
-          <LivePlaceSearch
-            placeholder="Search destination"
-            onSelect={goBook}
-          />
-        </SafeAreaView>
-      </Modal>
-
-      <Modal visible={pickupOpen} animationType="slide">
-        <SafeAreaView style={styles.modalSafe}>
-          <View style={styles.modalHead}>
-            <Text style={styles.modalTitle}>Pickup</Text>
-            <Pressable onPress={() => setPickupOpen(false)}>
-              <Text style={styles.close}>Close</Text>
-            </Pressable>
-          </View>
-          <LivePlaceSearch
-            placeholder="Search pickup"
-            onSelect={(place) => {
-              setPickup(place);
-              setPickupOpen(false);
-            }}
-          />
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -250,11 +259,27 @@ const styles = StyleSheet.create({
   pickupRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     paddingHorizontal: 4,
   },
-  pickupText: { flex: 1, color: colors.muted, fontWeight: "600", fontSize: 13 },
+  pickupLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.muted,
+    textTransform: "uppercase",
+  },
+  pickupValue: { color: colors.dark, fontWeight: "700", fontSize: 13 },
+  pickupLoading: { flexDirection: "row", alignItems: "center", gap: 8 },
   edit: { color: colors.primary, fontWeight: "800", fontSize: 13 },
+  permCard: {
+    backgroundColor: colors.warningSoft,
+    borderRadius: radii.lg,
+    padding: 14,
+    gap: 4,
+  },
+  permTitle: { fontWeight: "900", color: colors.dark },
+  permBody: { color: colors.muted, lineHeight: 18, fontSize: 13 },
+  permAction: { color: colors.primary, fontWeight: "800", marginTop: 4 },
   activeCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -293,13 +318,15 @@ const styles = StyleSheet.create({
   },
   suggestTitle: { fontWeight: "800", color: colors.dark },
   suggestSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  modalSafe: { flex: 1, backgroundColor: colors.surface, padding: 18 },
-  modalHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+  tips: {
+    marginTop: 8,
+    backgroundColor: colors.white,
+    borderRadius: radii.xl,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
   },
-  modalTitle: { fontSize: 22, fontWeight: "900", color: colors.dark },
-  close: { color: colors.primary, fontWeight: "800" },
+  tipTitle: { fontWeight: "900", color: colors.dark },
+  tipBody: { color: colors.muted, lineHeight: 20, fontSize: 13 },
 });

@@ -2,36 +2,10 @@ import { Card } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { colors, radii } from "@/constants/theme";
+import { RIDE_OPTIONS } from "@/lib/ride-options";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-
-const SERVICES = [
-  {
-    id: "standard",
-    title: "Ride",
-    hint: "Everyday trips across town",
-    icon: "car-outline" as const,
-  },
-  {
-    id: "express",
-    title: "Express",
-    hint: "Faster matching when busy",
-    icon: "flash-outline" as const,
-  },
-  {
-    id: "care",
-    title: "Comfort",
-    hint: "Extra care for special trips",
-    icon: "heart-outline" as const,
-  },
-  {
-    id: "schedule",
-    title: "Schedule",
-    hint: "Book for later",
-    icon: "calendar-outline" as const,
-  },
-] as const;
 
 export default function PassengerServicesScreen() {
   return (
@@ -41,13 +15,13 @@ export default function PassengerServicesScreen() {
         subtitle="Choose how you want to ride"
       />
       <View style={styles.grid}>
-        {SERVICES.map((s) => (
+        {RIDE_OPTIONS.map((s) => (
           <Pressable
             key={s.id}
             style={styles.tile}
             onPress={() =>
               router.push({
-                pathname: "/passenger",
+                pathname: "/passenger/where-to",
                 params: { serviceId: s.id },
               } as never)
             }
@@ -56,14 +30,15 @@ export default function PassengerServicesScreen() {
               <Ionicons name={s.icon} size={22} color={colors.primary} />
             </View>
             <Text style={styles.title}>{s.title}</Text>
-            <Text style={styles.hint}>{s.hint}</Text>
+            <Text style={styles.hint}>{s.description}</Text>
           </Pressable>
         ))}
       </View>
       <Card tint="blue">
         <Text style={styles.cardTitle}>Need a ride now?</Text>
         <Text style={styles.cardBody}>
-          Go to Home and tap Where to? to search your destination.
+          Tap Where to? on Home, set pickup and destination, then confirm on the
+          map.
         </Text>
       </Card>
     </Screen>

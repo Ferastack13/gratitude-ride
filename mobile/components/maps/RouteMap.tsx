@@ -1,6 +1,16 @@
-import { colors, radii } from "@/constants/theme";
-import { useMemo } from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import { colors, radii, shadows } from "@/constants/theme";
+import type { LatLng } from "@/lib/routing";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useMemo, useState } from "react";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 export type MapPoint = {
   lat: number;
@@ -13,6 +23,8 @@ type Props = {
   center: { lat: number; lng: number };
   pickup?: MapPoint;
   dropoff?: MapPoint;
+  /** Road geometry from OSRM (or straight line). Drawn on the street map image. */
+  routeCoords?: LatLng[];
   hubs?: MapPoint[];
   height?: number;
   fullBleed?: boolean;
@@ -20,6 +32,8 @@ type Props = {
   interactive?: boolean;
   live?: boolean;
   showsUserLocation?: boolean;
+  onRecenter?: () => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 function zoomFromDelta(delta?: number) {
@@ -30,27 +44,54 @@ function zoomFromDelta(delta?: number) {
   return 12;
 }
 
+function fitDelta(
+  pickup?: MapPoint,
+  dropoff?: MapPoint,
+  route?: LatLng[]
+): number {
+  const pts = [
+    ...(route ?? []),
+    ...(pickup ? [pickup] : []),
+    ...(dropoff ? [dropoff] : []),
+  ];
+  if (pts.length < 2) return 0.06;
+  const lats = pts.map((p) => p.lat);
+  const lngs = pts.map((p) => p.lng);
+  const dLat = Math.max(...lats) - Math.min(...lats);
+  const dLng = Math.max(...lngs) - Math.min(...lngs);
+  return Math.max(0.025, Math.max(dLat, dLng) * 1.55);
+}
+
 /**
- * Live street map via OSM static tiles image.
- * Avoids react-native-maps (needs Google key) and WebView html
- * (crashes Expo Go on Android with JSBigFileString::fromPath).
+ * Street map via OSM static tiles + optional route path.
+ * Expo Go safe: no Google Maps SDK / WebView HTML.
+ * Represents selected pickup, dropoff, and route geometry.
  */
 function buildMapUri(
   center: { lat: number; lng: number },
   markers: { lat: number; lng: number; color: string }[],
-  zoom: number
+  zoom: number,
+  path?: LatLng[]
 ) {
   const markerParams = markers
     .slice(0, 3)
     .map((m) => `${m.lat},${m.lng},${m.color}`)
     .join("|");
+
+  let pathParam = "";
+  if (path && path.length >= 2) {
+    const pts = path.map((p) => `${p.lat},${p.lng}`).join("|");
+    pathParam = `&path=color:0x1D61E7|weight:5|${pts}`;
+  }
+
   return (
     "https://staticmap.openstreetmap.de/staticmap.php?" +
     `center=${center.lat},${center.lng}` +
     `&zoom=${zoom}` +
     `&size=720x1100` +
     `&maptype=mapnik` +
-    (markerParams ? `&markers=${markerParams}` : "")
+    (markerParams ? `&markers=${markerParams}` : "") +
+    pathParam
   );
 }
 
@@ -58,10 +99,19 @@ export function RouteMap({
   center,
   pickup,
   dropoff,
+  routeCoords,
   height = 220,
   fullBleed = false,
-  delta = 0.08,
+  delta,
+  onRecenter,
+  style,
 }: Props) {
+  const autoDelta = useMemo(
+    () => delta ?? fitDelta(pickup, dropoff, routeCoords),
+    [delta, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, routeCoords]
+  );
+  const [zoomBoost, setZoomBoost] = useState(0);
+
   const mapCenter = useMemo(() => {
     if (pickup && dropoff) {
       return {
@@ -69,20 +119,25 @@ export function RouteMap({
         lng: (pickup.lng + dropoff.lng) / 2,
       };
     }
+    if (pickup) return { lat: pickup.lat, lng: pickup.lng };
     return center;
   }, [center.lat, center.lng, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng]);
 
+  const baseZoom = zoomFromDelta(autoDelta);
+  const zoom = Math.min(16, Math.max(11, baseZoom + zoomBoost));
+
   const uri = useMemo(() => {
-    const markers: { lat: number; lng: number; color: string }[] = [
-      { lat: center.lat, lng: center.lng, color: "lightblue1" },
-    ];
+    const markers: { lat: number; lng: number; color: string }[] = [];
     if (pickup) {
       markers.push({ lat: pickup.lat, lng: pickup.lng, color: "green" });
     }
     if (dropoff) {
       markers.push({ lat: dropoff.lat, lng: dropoff.lng, color: "orange" });
     }
-    return buildMapUri(mapCenter, markers, zoomFromDelta(delta));
+    if (!pickup && !dropoff) {
+      markers.push({ lat: center.lat, lng: center.lng, color: "lightblue1" });
+    }
+    return buildMapUri(mapCenter, markers, zoom, routeCoords);
   }, [
     mapCenter.lat,
     mapCenter.lng,
@@ -92,7 +147,8 @@ export function RouteMap({
     pickup?.lng,
     dropoff?.lat,
     dropoff?.lng,
-    delta,
+    zoom,
+    routeCoords,
   ]);
 
   return (
@@ -100,6 +156,7 @@ export function RouteMap({
       style={[
         fullBleed ? styles.full : styles.shell,
         !fullBleed ? { height } : null,
+        style,
       ]}
       collapsable={false}
     >
@@ -108,11 +165,39 @@ export function RouteMap({
         source={{ uri }}
         style={styles.map}
         resizeMode="cover"
-        accessibilityLabel="Live location map"
+        accessibilityLabel="Route map"
       />
       <View style={styles.badge} pointerEvents="none">
         <View style={styles.dot} />
-        <Text style={styles.badgeText}>Live map</Text>
+        <Text style={styles.badgeText}>
+          {routeCoords && routeCoords.length > 2 ? "Route map" : "Street map"}
+        </Text>
+      </View>
+
+      <View style={styles.controls}>
+        <Pressable
+          style={styles.ctrlBtn}
+          onPress={() => setZoomBoost((z) => Math.min(3, z + 1))}
+          accessibilityLabel="Zoom in"
+        >
+          <Ionicons name="add" size={20} color={colors.dark} />
+        </Pressable>
+        <Pressable
+          style={styles.ctrlBtn}
+          onPress={() => setZoomBoost((z) => Math.max(-2, z - 1))}
+          accessibilityLabel="Zoom out"
+        >
+          <Ionicons name="remove" size={20} color={colors.dark} />
+        </Pressable>
+        {onRecenter ? (
+          <Pressable
+            style={styles.ctrlBtn}
+            onPress={onRecenter}
+            accessibilityLabel="Recenter map"
+          >
+            <Ionicons name="locate" size={18} color={colors.primary} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -167,5 +252,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     color: colors.dark,
+  },
+  controls: {
+    position: "absolute",
+    right: 12,
+    bottom: 16,
+    gap: 8,
+  },
+  ctrlBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
 });

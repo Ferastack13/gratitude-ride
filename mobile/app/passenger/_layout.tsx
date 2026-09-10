@@ -42,12 +42,24 @@ export default function PassengerLayout() {
       <Tabs.Screen name="activity" options={{ title: "Activity" }} />
       <Tabs.Screen name="account" options={{ title: "Account" }} />
       <Tabs.Screen
+        name="where-to"
+        options={{ href: null, headerShown: false, title: "Where to" }}
+      />
+      <Tabs.Screen
+        name="plan"
+        options={{ href: null, headerShown: false, title: "Plan" }}
+      />
+      <Tabs.Screen
         name="book"
         options={{ href: null, headerShown: false, title: "Book" }}
       />
       <Tabs.Screen
         name="track/[id]"
         options={{ href: null, headerShown: false, title: "Track" }}
+      />
+      <Tabs.Screen
+        name="trip/[id]"
+        options={{ href: null, headerShown: false, title: "Trip" }}
       />
     </Tabs>
   );

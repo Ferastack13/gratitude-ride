@@ -9,10 +9,12 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { distanceKm } from "@/lib/cities";
 import {
+  ensureRiderId,
   nextStatus,
   TIMELINE_LABELS,
   type Delivery,
 } from "@/lib/deliveries";
+import { startDriverLocationPublisher } from "@/lib/driver-location";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
 import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -44,6 +46,8 @@ function slideLabel(status: Delivery["status"]) {
   }
 }
 
+const LIVE_STATUSES = new Set(["accepted", "picked_up", "in_transit"]);
+
 export default function ActiveDeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
@@ -52,6 +56,10 @@ export default function ActiveDeliveryScreen() {
   const [clientPhone, setClientPhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [selfCoords, setSelfCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -83,6 +91,33 @@ export default function ActiveDeliveryScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Keep publishing real GPS while this trip is active. */
+  useEffect(() => {
+    if (!profile?.id || !delivery || !LIVE_STATUSES.has(delivery.status)) {
+      return;
+    }
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      const riderId = await ensureRiderId(profile.id);
+      const result = await startDriverLocationPublisher(riderId, (coords) => {
+        if (!cancelled) setSelfCoords(coords);
+      });
+      if (cancelled) {
+        if ("stop" in result) result.stop();
+        return;
+      }
+      if ("error" in result) return;
+      stop = result.stop;
+    })();
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [profile?.id, delivery?.id, delivery?.status]);
 
   const km = useMemo(() => {
     if (
@@ -175,35 +210,48 @@ export default function ActiveDeliveryScreen() {
   const hasCoords =
     delivery.pickup_lat != null && delivery.delivery_lat != null;
   const eta = formatEta(estimateEtaMinutes(km, delivery.status));
+  const mapCenter = hasCoords
+    ? {
+        lat: (delivery.pickup_lat! + delivery.delivery_lat!) / 2,
+        lng: (delivery.pickup_lng! + delivery.delivery_lng!) / 2,
+      }
+    : selfCoords
+      ? selfCoords
+      : delivery.pickup_lat != null
+        ? { lat: delivery.pickup_lat, lng: delivery.pickup_lng! }
+        : { lat: 0, lng: 0 };
 
   return (
     <MapShell
       map={
         <RouteMap
           fullBleed
-          center={
-            hasCoords
-              ? {
-                  lat: (delivery.pickup_lat! + delivery.delivery_lat!) / 2,
-                  lng: (delivery.pickup_lng! + delivery.delivery_lng!) / 2,
-                }
-              : { lat: 6.5244, lng: 3.3792 }
-          }
+          live={Boolean(selfCoords)}
+          center={mapCenter}
           pickup={
-            hasCoords
+            delivery.pickup_lat != null
               ? {
-                  lat: delivery.pickup_lat!,
+                  lat: delivery.pickup_lat,
                   lng: delivery.pickup_lng!,
                   label: "Pickup",
                 }
               : undefined
           }
           dropoff={
-            hasCoords
+            delivery.delivery_lat != null
               ? {
-                  lat: delivery.delivery_lat!,
+                  lat: delivery.delivery_lat,
                   lng: delivery.delivery_lng!,
                   label: "Drop-off",
+                }
+              : undefined
+          }
+          driver={
+            selfCoords
+              ? {
+                  lat: selfCoords.lat,
+                  lng: selfCoords.lng,
+                  label: "You",
                 }
               : undefined
           }
@@ -309,7 +357,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  routeAddr: { fontSize: 14, fontWeight: "700", color: colors.dark, lineHeight: 20 },
+  routeAddr: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.dark,
+    lineHeight: 20,
+  },
   done: {
     textAlign: "center",
     fontWeight: "800",

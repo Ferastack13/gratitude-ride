@@ -10,6 +10,11 @@ import { colors, radii } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { distanceKm } from "@/lib/cities";
 import type { Delivery } from "@/lib/deliveries";
+import {
+  formatLocationAge,
+  isDriverLocationStale,
+  type DriverLiveLocation,
+} from "@/lib/driver-location";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
 import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
 import { fetchDrivingRoute } from "@/lib/routing";
@@ -35,6 +40,12 @@ import {
   View,
 } from "react-native";
 
+const TRACK_LIVE_STATUSES = new Set([
+  "accepted",
+  "picked_up",
+  "in_transit",
+]);
+
 export default function PassengerTrackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
@@ -43,6 +54,9 @@ export default function PassengerTrackScreen() {
   const [riderPhone, setRiderPhone] = useState<string | null>(null);
   const [vehicleType, setVehicleType] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [driverLive, setDriverLive] = useState<DriverLiveLocation | null>(
+    null
+  );
   const [routeCoords, setRouteCoords] = useState<
     { lat: number; lng: number }[] | undefined
   >();
@@ -51,15 +65,30 @@ export default function PassengerTrackScreen() {
   const [rated, setRated] = useState(false);
   const [ratingBusy, setRatingBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [locationTick, setLocationTick] = useState(0);
 
   const hydrateDriver = useCallback(async (riderRowId: string) => {
     const { data: rider } = await supabase
       .from("riders")
-      .select("user_id, rating, vehicle_type")
+      .select(
+        "user_id, rating, vehicle_type, current_lat, current_lng, location_updated_at"
+      )
       .eq("id", riderRowId)
       .maybeSingle();
     setVehicleType(rider?.vehicle_type ?? null);
     setRating(rider?.rating != null ? Number(rider.rating) : null);
+    if (
+      rider?.current_lat != null &&
+      rider?.current_lng != null &&
+      Number.isFinite(Number(rider.current_lat)) &&
+      Number.isFinite(Number(rider.current_lng))
+    ) {
+      setDriverLive({
+        lat: Number(rider.current_lat),
+        lng: Number(rider.current_lng),
+        updatedAt: rider.location_updated_at ?? null,
+      });
+    }
     if (rider?.user_id) {
       const { data: user } = await supabase
         .from("users")
@@ -111,8 +140,10 @@ export default function PassengerTrackScreen() {
       setRouteCoords(route.coords);
     }
 
-    if (data.rider_id) {
+    if (data.rider_id && data.status !== "pending") {
       await hydrateDriver(data.rider_id);
+    } else {
+      setDriverLive(null);
     }
 
     if (profile?.id) {
@@ -132,6 +163,7 @@ export default function PassengerTrackScreen() {
     load();
   }, [load]);
 
+  /** Delivery status realtime (Phase 1). */
   useEffect(() => {
     if (!delivery?.id) return;
     const channel = supabase
@@ -151,6 +183,9 @@ export default function PassengerTrackScreen() {
             if (next.rider_id && next.status !== "pending") {
               void hydrateDriver(next.rider_id);
             }
+            if (next.status === "pending" || !next.rider_id) {
+              setDriverLive(null);
+            }
           }
         }
       )
@@ -159,6 +194,85 @@ export default function PassengerTrackScreen() {
       supabase.removeChannel(channel);
     };
   }, [delivery?.id, hydrateDriver]);
+
+  /**
+   * Live GPS for the assigned rider only (`delivery.rider_id`).
+   * Pending → no driver marker. Delivered → stop listening.
+   */
+  useEffect(() => {
+    const riderId = delivery?.rider_id;
+    const status = delivery?.status;
+    if (!riderId || !status || !TRACK_LIVE_STATUSES.has(status)) {
+      if (status === "pending" || status === "delivered" || !riderId) {
+        // keep last known coords only while active; clear on pending
+        if (status === "pending" || !riderId) setDriverLive(null);
+      }
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const { data } = await supabase
+        .from("riders")
+        .select("current_lat, current_lng, location_updated_at")
+        .eq("id", riderId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.current_lat != null && data?.current_lng != null) {
+        setDriverLive({
+          lat: Number(data.current_lat),
+          lng: Number(data.current_lng),
+          updatedAt: data.location_updated_at ?? null,
+        });
+      }
+    })();
+
+    const channel = supabase
+      .channel(`passenger-driver-gps-${delivery!.id}-${riderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "riders",
+          filter: `id=eq.${riderId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            current_lat?: number | null;
+            current_lng?: number | null;
+            location_updated_at?: string | null;
+          } | null;
+          if (
+            row?.current_lat == null ||
+            row?.current_lng == null ||
+            !Number.isFinite(Number(row.current_lat)) ||
+            !Number.isFinite(Number(row.current_lng))
+          ) {
+            return;
+          }
+          setDriverLive({
+            lat: Number(row.current_lat),
+            lng: Number(row.current_lng),
+            updatedAt: row.location_updated_at ?? new Date().toISOString(),
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [delivery?.id, delivery?.rider_id, delivery?.status]);
+
+  /** Refresh "Updated Xs ago" copy while watching live GPS. */
+  useEffect(() => {
+    if (!delivery?.status || !TRACK_LIVE_STATUSES.has(delivery.status)) return;
+    const t = setInterval(() => setLocationTick((n) => n + 1), 5000);
+    return () => clearInterval(t);
+  }, [delivery?.status]);
 
   const km = useMemo(() => {
     if (
@@ -270,23 +384,54 @@ export default function PassengerTrackScreen() {
   const stage = tripStageFromStatus(delivery.status);
   const stageCopy = TRIP_STAGE_COPY[stage];
   const searching = delivery.status === "pending";
-  const hasCoords =
-    delivery.pickup_lat != null && delivery.delivery_lat != null;
-  const center = hasCoords
-    ? {
-        lat: (delivery.pickup_lat! + delivery.delivery_lat!) / 2,
-        lng: (delivery.pickup_lng! + delivery.delivery_lng!) / 2,
-      }
-    : { lat: 6.5244, lng: 3.3792 };
+  const showLiveDriver =
+    Boolean(delivery.rider_id) && TRACK_LIVE_STATUSES.has(delivery.status);
+  const hasFreshDriver =
+    showLiveDriver &&
+    driverLive != null &&
+    !isDriverLocationStale(driverLive.updatedAt);
+  const hasAnyDriverPoint =
+    showLiveDriver &&
+    driverLive != null &&
+    Number.isFinite(driverLive.lat) &&
+    Number.isFinite(driverLive.lng);
+
+  const hasPickup = delivery.pickup_lat != null && delivery.pickup_lng != null;
+  const hasDropoff =
+    delivery.delivery_lat != null && delivery.delivery_lng != null;
+  const center =
+    hasPickup && hasDropoff
+      ? {
+          lat: (delivery.pickup_lat! + delivery.delivery_lat!) / 2,
+          lng: (delivery.pickup_lng! + delivery.delivery_lng!) / 2,
+        }
+      : hasPickup
+        ? { lat: delivery.pickup_lat!, lng: delivery.pickup_lng! }
+        : hasDropoff
+          ? { lat: delivery.delivery_lat!, lng: delivery.delivery_lng! }
+          : hasAnyDriverPoint
+            ? { lat: driverLive!.lat, lng: driverLive!.lng }
+            : { lat: 0, lng: 0 };
+
+  void locationTick; // keep age label reactive
+
+  const locationLabel = !showLiveDriver
+    ? null
+    : !hasAnyDriverPoint
+      ? "Waiting for driver’s location…"
+      : isDriverLocationStale(driverLive!.updatedAt)
+        ? "Waiting for driver’s location update"
+        : formatLocationAge(driverLive!.updatedAt);
 
   return (
     <MapShell
       map={
         <RouteMap
           fullBleed
+          live={Boolean(hasFreshDriver)}
           center={center}
           pickup={
-            hasCoords
+            hasPickup
               ? {
                   lat: delivery.pickup_lat!,
                   lng: delivery.pickup_lng!,
@@ -295,11 +440,20 @@ export default function PassengerTrackScreen() {
               : undefined
           }
           dropoff={
-            hasCoords
+            hasDropoff
               ? {
                   lat: delivery.delivery_lat!,
                   lng: delivery.delivery_lng!,
                   label: "Drop-off",
+                }
+              : undefined
+          }
+          driver={
+            hasAnyDriverPoint
+              ? {
+                  lat: driverLive!.lat,
+                  lng: driverLive!.lng,
+                  label: "Driver",
                 }
               : undefined
           }
@@ -380,6 +534,9 @@ export default function PassengerTrackScreen() {
                   .filter(Boolean)
                   .join(" · ")}
               />
+              {locationLabel ? (
+                <Text style={styles.liveLine}>{locationLabel}</Text>
+              ) : null}
               <View style={styles.driverMeta}>
                 <Text style={styles.metaLine}>
                   Vehicle · {vehicleType ?? "Car"}
@@ -493,8 +650,18 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   stageTitle: { fontSize: 18, fontWeight: "900", color: colors.dark },
-  stageDetail: { color: colors.muted, fontSize: 13, marginTop: 4, lineHeight: 18 },
+  stageDetail: {
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   driverCard: { gap: 8 },
+  liveLine: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.primaryDark,
+  },
   driverMeta: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radii.md,

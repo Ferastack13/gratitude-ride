@@ -463,6 +463,27 @@ export type Database = {
           },
         ]
       }
+      delivery_declines: {
+        Row: {
+          created_at: string
+          delivery_id: string
+          id: string
+          rider_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_id: string
+          id?: string
+          rider_id: string
+        }
+        Update: {
+          created_at?: string
+          delivery_id?: string
+          id?: string
+          rider_id?: string
+        }
+        Relationships: []
+      }
       tracking: {
         Row: {
           created_at: string
@@ -552,6 +573,14 @@ export type Database = {
           status: Database["public"]["Enums"]["delivery_status"]
           tracking_id: string
         }[]
+      }
+      accept_delivery: {
+        Args: { p_delivery_id: string }
+        Returns: Database["public"]["Tables"]["deliveries"]["Row"]
+      }
+      cancel_pending_delivery: {
+        Args: { p_tracking_id: string }
+        Returns: Database["public"]["Tables"]["deliveries"]["Row"]
       }
     }
     Enums: {

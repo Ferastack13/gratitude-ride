@@ -7,6 +7,7 @@ import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
 import { resolveCurrentLocation } from "@/lib/location";
+import { startDriverLocationPublisher } from "@/lib/driver-location";
 import {
   acceptDeliveryAtomic,
   declineDeliveryForRider,
@@ -55,7 +56,8 @@ export default function DriverHomeScreen() {
         lng: Number(orders[0].pickup_lng),
       };
     }
-    return { lat: 6.5244, lng: 3.3792 };
+    // No GPS yet — center on first request only; never invent a city
+    return { lat: 0, lng: 0 };
   }, [driverCoords, orders]);
 
   const refreshPending = useCallback(
@@ -135,31 +137,37 @@ export default function DriverHomeScreen() {
     }, [load])
   );
 
-  /** Refresh GPS while online and persist for radius matching. */
+  /** Real device GPS → riders.current_* while online or on an active trip. */
   useEffect(() => {
-    if (!online || !riderId) return;
+    const shouldPublish = Boolean(riderId && (online || activeTripId));
+    if (!shouldPublish || !riderId) return;
+
+    let stop: (() => void) | undefined;
     let cancelled = false;
 
-    const ping = async () => {
-      const res = await resolveCurrentLocation();
-      if (cancelled || !res.ok) return;
-      const coords = res.coords;
-      setDriverCoords(coords);
-      try {
-        await updateRiderLocation(riderId, coords);
-      } catch {
-        // non-fatal
+    void (async () => {
+      const result = await startDriverLocationPublisher(riderId, (coords) => {
+        if (!cancelled) setDriverCoords(coords);
+      });
+      if (cancelled) {
+        if ("stop" in result) result.stop();
+        return;
       }
-      await refreshPending(coords, declinedIds);
-    };
+      if ("error" in result) {
+        // Permission denied — matching still works loosely; passenger may wait for GPS
+        return;
+      }
+      stop = result.stop;
+      await refreshPending(driverCoords, declinedIds);
+    })();
 
-    ping();
-    const timer = setInterval(ping, 45000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stop?.();
     };
-  }, [online, riderId, declinedIds, refreshPending]);
+    // Intentionally omit driverCoords/declinedIds — refresh on focus / realtime handles offers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, riderId, activeTripId, refreshPending]);
 
   /** Realtime: new/updated pending deliveries while online. */
   useEffect(() => {

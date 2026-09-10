@@ -23,6 +23,8 @@ type Props = {
   center: { lat: number; lng: number };
   pickup?: MapPoint;
   dropoff?: MapPoint;
+  /** Assigned driver's live GPS — real coords only, never invent. */
+  driver?: MapPoint;
   /** Road geometry from OSRM (or straight line). Drawn on the street map image. */
   routeCoords?: LatLng[];
   hubs?: MapPoint[];
@@ -47,12 +49,14 @@ function zoomFromDelta(delta?: number) {
 function fitDelta(
   pickup?: MapPoint,
   dropoff?: MapPoint,
+  driver?: MapPoint,
   route?: LatLng[]
 ): number {
   const pts = [
     ...(route ?? []),
     ...(pickup ? [pickup] : []),
     ...(dropoff ? [dropoff] : []),
+    ...(driver ? [driver] : []),
   ];
   if (pts.length < 2) return 0.06;
   const lats = pts.map((p) => p.lat);
@@ -99,16 +103,27 @@ export function RouteMap({
   center,
   pickup,
   dropoff,
+  driver,
   routeCoords,
   height = 220,
   fullBleed = false,
   delta,
+  live,
   onRecenter,
   style,
 }: Props) {
   const autoDelta = useMemo(
-    () => delta ?? fitDelta(pickup, dropoff, routeCoords),
-    [delta, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, routeCoords]
+    () => delta ?? fitDelta(pickup, dropoff, driver, routeCoords),
+    [
+      delta,
+      pickup?.lat,
+      pickup?.lng,
+      dropoff?.lat,
+      dropoff?.lng,
+      driver?.lat,
+      driver?.lng,
+      routeCoords,
+    ]
   );
   const [zoomBoost, setZoomBoost] = useState(0);
 
@@ -119,9 +134,19 @@ export function RouteMap({
         lng: (pickup.lng + dropoff.lng) / 2,
       };
     }
+    if (driver) return { lat: driver.lat, lng: driver.lng };
     if (pickup) return { lat: pickup.lat, lng: pickup.lng };
     return center;
-  }, [center.lat, center.lng, pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng]);
+  }, [
+    center.lat,
+    center.lng,
+    pickup?.lat,
+    pickup?.lng,
+    dropoff?.lat,
+    dropoff?.lng,
+    driver?.lat,
+    driver?.lng,
+  ]);
 
   const baseZoom = zoomFromDelta(autoDelta);
   const zoom = Math.min(16, Math.max(11, baseZoom + zoomBoost));
@@ -134,7 +159,10 @@ export function RouteMap({
     if (dropoff) {
       markers.push({ lat: dropoff.lat, lng: dropoff.lng, color: "orange" });
     }
-    if (!pickup && !dropoff) {
+    if (driver) {
+      markers.push({ lat: driver.lat, lng: driver.lng, color: "blue" });
+    }
+    if (!pickup && !dropoff && !driver) {
       markers.push({ lat: center.lat, lng: center.lng, color: "lightblue1" });
     }
     return buildMapUri(mapCenter, markers, zoom, routeCoords);
@@ -147,6 +175,8 @@ export function RouteMap({
     pickup?.lng,
     dropoff?.lat,
     dropoff?.lng,
+    driver?.lat,
+    driver?.lng,
     zoom,
     routeCoords,
   ]);
@@ -170,7 +200,11 @@ export function RouteMap({
       <View style={styles.badge} pointerEvents="none">
         <View style={styles.dot} />
         <Text style={styles.badgeText}>
-          {routeCoords && routeCoords.length > 2 ? "Route map" : "Street map"}
+          {live && driver
+            ? "Live driver"
+            : routeCoords && routeCoords.length > 2
+              ? "Route map"
+              : "Street map"}
         </Text>
       </View>
 

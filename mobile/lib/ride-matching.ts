@@ -43,7 +43,7 @@ export async function updateRiderLocation(riderId: string, coords: LatLng) {
       current_lat: coords.lat,
       current_lng: coords.lng,
       location_updated_at: new Date().toISOString(),
-    } as never)
+    })
     .eq("id", riderId);
   if (error) throw error;
 }
@@ -54,7 +54,7 @@ export async function acceptDeliveryAtomic(deliveryId: string): Promise<Delivery
     p_delivery_id: deliveryId,
   });
   if (error) throw error;
-  return data as Delivery;
+  return data as unknown as Delivery;
 }
 
 /** Persist decline for this rider only — ride stays pending for others. */
@@ -66,7 +66,7 @@ export async function declineDeliveryForRider(
     {
       delivery_id: deliveryId,
       rider_id: riderId,
-    } as never,
+    },
     { onConflict: "delivery_id,rider_id" }
   );
   if (error) throw error;
@@ -78,7 +78,7 @@ export async function loadMyDeclinedDeliveryIds(riderId: string) {
     .select("delivery_id")
     .eq("rider_id", riderId);
   if (error) throw error;
-  return new Set((data ?? []).map((r) => r.delivery_id as string));
+  return new Set((data ?? []).map((r) => r.delivery_id));
 }
 
 export async function cancelPendingDelivery(trackingId: string) {
@@ -86,7 +86,7 @@ export async function cancelPendingDelivery(trackingId: string) {
     p_tracking_id: trackingId,
   });
   if (error) throw error;
-  return data as Delivery;
+  return data as unknown as Delivery;
 }
 
 export function rideTypeFromNotes(notes: string | null | undefined) {

@@ -1,9 +1,13 @@
-import { AppTabBar } from "@/components/navigation/AppTabBar";
 import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
+/**
+ * Passenger root = Stack.
+ * Permanent tabs live in (tabs). Ride-booking steps are stack screens
+ * (where-to, plan, track, trip) — never bottom-nav items.
+ */
 export default function PassengerLayout() {
   const { session, loading, ready, profile, accountType } = useAuth();
 
@@ -27,40 +31,19 @@ export default function PassengerLayout() {
   }
 
   return (
-    <Tabs
-      backBehavior="history"
-      tabBar={(props) => <AppTabBar {...props} />}
+    <Stack
       screenOptions={{
         headerShown: false,
-        lazy: false,
-        freezeOnBlur: true,
-        sceneStyle: { backgroundColor: colors.surface, flex: 1 },
+        contentStyle: { backgroundColor: colors.surface },
+        animation: "slide_from_right",
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="services" options={{ title: "Services" }} />
-      <Tabs.Screen name="activity" options={{ title: "Activity" }} />
-      <Tabs.Screen name="account" options={{ title: "Account" }} />
-      <Tabs.Screen
-        name="where-to"
-        options={{ href: null, headerShown: false, title: "Where to" }}
-      />
-      <Tabs.Screen
-        name="plan"
-        options={{ href: null, headerShown: false, title: "Plan" }}
-      />
-      <Tabs.Screen
-        name="book"
-        options={{ href: null, headerShown: false, title: "Book" }}
-      />
-      <Tabs.Screen
-        name="track/[id]"
-        options={{ href: null, headerShown: false, title: "Track" }}
-      />
-      <Tabs.Screen
-        name="trip/[id]"
-        options={{ href: null, headerShown: false, title: "Trip" }}
-      />
-    </Tabs>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="where-to" options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="plan" />
+      <Stack.Screen name="book" />
+      <Stack.Screen name="track/[id]" />
+      <Stack.Screen name="trip/[id]" />
+    </Stack>
   );
 }

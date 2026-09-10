@@ -26,6 +26,23 @@ const ICONS: Record<string, IconName> = {
   billing: "card-outline",
 };
 
+/** Only these route names may appear in the tab bar (defense in depth). */
+const TAB_ROUTE_ALLOWLIST = new Set([
+  "index",
+  "services",
+  "activity",
+  "account",
+  "orders",
+  "earnings",
+  "inbox",
+  "profile",
+  "book",
+  "deliveries",
+  "bookings",
+  "billing",
+  "team",
+]);
+
 /** Android-safe tab bar — sits above MapView and always receives taps. */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -33,8 +50,17 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 
   const tabs = state.routes.filter((route) => {
     const opts = descriptors[route.key]?.options as { href?: unknown };
-    // Expo Router hides screens with href: null (e.g. track/[id])
-    return opts?.href !== null;
+    if (opts?.href === null) return false;
+    // Never show booking-flow screens even if mis-registered as tabs
+    if (
+      route.name === "where-to" ||
+      route.name === "plan" ||
+      route.name.startsWith("track") ||
+      route.name.startsWith("trip")
+    ) {
+      return false;
+    }
+    return TAB_ROUTE_ALLOWLIST.has(route.name);
   });
 
   return (

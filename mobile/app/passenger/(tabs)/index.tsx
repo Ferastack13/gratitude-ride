@@ -214,14 +214,6 @@ export default function PassengerHomeScreen() {
             </Pressable>
           ))
         )}
-
-        <View style={styles.tips}>
-          <Text style={styles.tipTitle}>Ride tips</Text>
-          <Text style={styles.tipBody}>
-            Confirm pickup and destination on the map, then choose Standard,
-            Express, or Comfort before requesting.
-          </Text>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -318,15 +310,4 @@ const styles = StyleSheet.create({
   },
   suggestTitle: { fontWeight: "800", color: colors.dark },
   suggestSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  tips: {
-    marginTop: 8,
-    backgroundColor: colors.white,
-    borderRadius: radii.xl,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
-  },
-  tipTitle: { fontWeight: "900", color: colors.dark },
-  tipBody: { color: colors.muted, lineHeight: 20, fontSize: 13 },
 });

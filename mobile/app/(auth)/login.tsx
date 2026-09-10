@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
 import { colors } from "@/constants/theme";
+import { friendlyAuthError } from "@/lib/supabase-errors";
 import { supabase } from "@/lib/supabase";
 import { Link, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -32,11 +33,7 @@ export default function LoginScreen() {
     });
     setLoading(false);
     if (signInError) {
-      setError(
-        signInError.message === "Invalid login credentials"
-          ? "Incorrect email or password."
-          : signInError.message
-      );
+      setError(friendlyAuthError(signInError.message));
       return;
     }
     router.replace("/");

@@ -9,6 +9,7 @@ import {
   type AccountType,
 } from "@/lib/account-type";
 import { getAuthRedirectUri } from "@/lib/auth-redirect";
+import { friendlyAuthError } from "@/lib/supabase-errors";
 import { supabase } from "@/lib/supabase";
 import { Link, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -69,7 +70,7 @@ export default function RegisterScreen() {
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlyAuthError(signUpError.message));
       return;
     }
 

@@ -1,5 +1,4 @@
 import { RouteMap } from "@/components/maps/RouteMap";
-import { FindingCourier } from "@/components/workflow/FindingCourier";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { pushRecentPlace } from "@/lib/client-prefs";
@@ -91,8 +90,6 @@ export default function PassengerPlanScreen() {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routing, setRouting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [matching, setMatching] = useState(false);
-  const [trackingId, setTrackingId] = useState<string | null>(null);
 
   const option = useMemo(() => rideOptionById(rideId), [rideId]);
 
@@ -166,11 +163,8 @@ export default function PassengerPlanScreen() {
       if (error) throw error;
 
       await pushRecentPlace(dropoff);
-      setTrackingId(data.tracking_id);
-      setMatching(true);
-      setTimeout(() => {
-        router.replace(`/passenger/track/${data.tracking_id}` as never);
-      }, 2400);
+      // Go straight to Track while pending — Finding Driver waits for REAL accept
+      router.replace(`/passenger/track/${data.tracking_id}` as never);
     } catch (err) {
       Alert.alert(
         "Request failed",
@@ -191,27 +185,6 @@ export default function PassengerPlanScreen() {
         >
           <Text style={styles.primaryText}>Choose locations</Text>
         </Pressable>
-      </SafeAreaView>
-    );
-  }
-
-  if (matching) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.matching}>
-          <FindingCourier
-            city={dropoff.city || pickup.city || "your area"}
-            trackingId={trackingId ?? undefined}
-            title="Finding your driver"
-            subtitle={`Matching a ${option.title} driver near you. This usually takes under a minute.`}
-          />
-          <Pressable
-            style={styles.cancelGhost}
-            onPress={() => router.replace("/passenger" as never)}
-          >
-            <Text style={styles.cancelText}>Back to Home</Text>
-          </Pressable>
-        </View>
       </SafeAreaView>
     );
   }
@@ -467,7 +440,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryText: { color: colors.white, fontWeight: "900", fontSize: 16 },
-  matching: { flex: 1, justifyContent: "center", padding: 24, gap: 20 },
-  cancelGhost: { alignItems: "center", padding: 12 },
-  cancelText: { color: colors.muted, fontWeight: "700" },
 });

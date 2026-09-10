@@ -410,11 +410,14 @@ export type Database = {
       riders: {
         Row: {
           created_at: string
+          current_lat: number | null
+          current_lng: number | null
           earnings: number
           id: string
           is_available: boolean
           is_verified: boolean
           license_number: string | null
+          location_updated_at: string | null
           rating: number
           total_deliveries: number
           user_id: string
@@ -422,11 +425,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          current_lat?: number | null
+          current_lng?: number | null
           earnings?: number
           id?: string
           is_available?: boolean
           is_verified?: boolean
           license_number?: string | null
+          location_updated_at?: string | null
           rating?: number
           total_deliveries?: number
           user_id: string
@@ -434,11 +440,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          current_lat?: number | null
+          current_lng?: number | null
           earnings?: number
           id?: string
           is_available?: boolean
           is_verified?: boolean
           license_number?: string | null
+          location_updated_at?: string | null
           rating?: number
           total_deliveries?: number
           user_id?: string

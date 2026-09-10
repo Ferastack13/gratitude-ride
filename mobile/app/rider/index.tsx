@@ -4,13 +4,22 @@ import { JobOfferModal } from "@/components/workflow/JobOfferModal";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { getCityConfig } from "@/lib/cities";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
+import { resolveCurrentLocation } from "@/lib/location";
+import {
+  acceptDeliveryAtomic,
+  declineDeliveryForRider,
+  DRIVER_MATCH_RADIUS_KM,
+  filterNearbyPending,
+  loadMyDeclinedDeliveryIds,
+  updateRiderLocation,
+  type LatLng,
+} from "@/lib/ride-matching";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -25,63 +34,99 @@ export default function DriverHomeScreen() {
   const { profile } = useAuth();
   const [online, setOnline] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [city, setCity] = useState("Lagos");
+  const [riderId, setRiderId] = useState<string | null>(null);
+  const [driverCoords, setDriverCoords] = useState<LatLng | null>(null);
   const [orders, setOrders] = useState<Delivery[]>([]);
+  const [declinedIds, setDeclinedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [offer, setOffer] = useState<Delivery | null>(null);
   const [accepting, setAccepting] = useState(false);
-  const [dismissed, setDismissed] = useState<string[]>([]);
   const [todayEarn, setTodayEarn] = useState(0);
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  const config = getCityConfig(city);
   const firstName = profile?.full_name?.split(" ")[0] ?? "Driver";
+
+  const mapCenter = useMemo(() => {
+    if (driverCoords) return driverCoords;
+    if (orders[0]?.pickup_lat != null) {
+      return {
+        lat: Number(orders[0].pickup_lat),
+        lng: Number(orders[0].pickup_lng),
+      };
+    }
+    return { lat: 6.5244, lng: 3.3792 };
+  }, [driverCoords, orders]);
+
+  const refreshPending = useCallback(
+    async (coords: LatLng | null, declined: Set<string>) => {
+      const { data } = await supabase
+        .from("deliveries")
+        .select("*")
+        .eq("status", "pending")
+        .is("rider_id", null)
+        .order("created_at", { ascending: true });
+
+      const nearby = filterNearbyPending(data ?? [], coords, declined);
+      setOrders(nearby);
+      return nearby;
+    },
+    []
+  );
 
   const load = useCallback(async () => {
     if (!profile?.id) return;
+    const id = await ensureRiderId(profile.id);
+    setRiderId(id);
+
     const { data: rider } = await supabase
       .from("riders")
-      .select("id, is_available")
-      .eq("user_id", profile.id)
+      .select("id, is_available, current_lat, current_lng")
+      .eq("id", id)
       .maybeSingle();
     setOnline(Boolean(rider?.is_available));
 
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    if (rider?.id) {
-      const { data: todayRows } = await supabase
-        .from("deliveries")
-        .select("estimated_fee, actual_fee")
-        .eq("rider_id", rider.id)
-        .eq("status", "delivered")
-        .gte("delivered_at", start.toISOString());
-      const sum = (todayRows ?? []).reduce(
-        (acc, r) => acc + Number(r.actual_fee ?? r.estimated_fee ?? 0),
-        0
-      );
-      setTodayEarn(sum);
-
-      const { data: active } = await supabase
-        .from("deliveries")
-        .select("id")
-        .eq("rider_id", rider.id)
-        .in("status", ["accepted", "picked_up", "in_transit"])
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setActiveTripId(active?.id ?? null);
+    let coords: LatLng | null = null;
+    if (rider?.current_lat != null && rider?.current_lng != null) {
+      coords = {
+        lat: Number(rider.current_lat),
+        lng: Number(rider.current_lng),
+      };
+      setDriverCoords(coords);
     }
 
-    const { data } = await supabase
+    const declined = await loadMyDeclinedDeliveryIds(id).catch(
+      () => new Set<string>()
+    );
+    setDeclinedIds(declined);
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const { data: todayRows } = await supabase
       .from("deliveries")
-      .select("*")
-      .eq("status", "pending")
-      .eq("city", city)
-      .order("created_at", { ascending: true });
-    const next = (data ?? []).filter((row) => !dismissed.includes(row.id));
-    setOrders(next);
+      .select("estimated_fee, actual_fee")
+      .eq("rider_id", id)
+      .eq("status", "delivered")
+      .gte("delivered_at", start.toISOString());
+    const sum = (todayRows ?? []).reduce(
+      (acc, r) => acc + Number(r.actual_fee ?? r.estimated_fee ?? 0),
+      0
+    );
+    setTodayEarn(sum);
+
+    const { data: active } = await supabase
+      .from("deliveries")
+      .select("id")
+      .eq("rider_id", id)
+      .in("status", ["accepted", "picked_up", "in_transit"])
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setActiveTripId(active?.id ?? null);
+
+    await refreshPending(coords, declined);
     setLoading(false);
-  }, [profile?.id, city, dismissed]);
+  }, [profile?.id, refreshPending]);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,6 +134,84 @@ export default function DriverHomeScreen() {
       load();
     }, [load])
   );
+
+  /** Refresh GPS while online and persist for radius matching. */
+  useEffect(() => {
+    if (!online || !riderId) return;
+    let cancelled = false;
+
+    const ping = async () => {
+      const res = await resolveCurrentLocation();
+      if (cancelled || !res.ok) return;
+      const coords = res.coords;
+      setDriverCoords(coords);
+      try {
+        await updateRiderLocation(riderId, coords);
+      } catch {
+        // non-fatal
+      }
+      await refreshPending(coords, declinedIds);
+    };
+
+    ping();
+    const timer = setInterval(ping, 45000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [online, riderId, declinedIds, refreshPending]);
+
+  /** Realtime: new/updated pending deliveries while online. */
+  useEffect(() => {
+    if (!online || !profile?.id) {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+      return;
+    }
+
+    const channel = supabase
+      .channel(`driver-pending-${profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "deliveries",
+        },
+        async (payload) => {
+          const row = (payload.new ?? payload.old) as Delivery | undefined;
+          if (!row?.id) return;
+
+          // Always re-query eligible pending set (handles insert + accept races)
+          await refreshPending(driverCoords, declinedIds);
+
+          if (
+            payload.eventType === "UPDATE" &&
+            row.status === "accepted" &&
+            row.rider_id &&
+            row.rider_id === riderId
+          ) {
+            setOffer(null);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+    return () => {
+      supabase.removeChannel(channel);
+      if (channelRef.current === channel) channelRef.current = null;
+    };
+  }, [
+    online,
+    profile?.id,
+    riderId,
+    driverCoords,
+    declinedIds,
+    refreshPending,
+  ]);
 
   useEffect(() => {
     if (!online || orders.length === 0 || activeTripId) {
@@ -104,14 +227,37 @@ export default function DriverHomeScreen() {
     if (!profile?.id || toggling) return;
     setToggling(true);
     try {
-      const riderId = await ensureRiderId(profile.id);
+      const id = await ensureRiderId(profile.id);
+      setRiderId(id);
       const next = !online;
+
+      if (next) {
+        const res = await resolveCurrentLocation();
+        if (res.ok) {
+          setDriverCoords(res.coords);
+          await updateRiderLocation(id, res.coords);
+        } else {
+          Alert.alert(
+            "Location recommended",
+            "Enable GPS so we can send you nearby ride requests. You can still go online."
+          );
+        }
+      }
+
       const { error } = await supabase
         .from("riders")
         .update({ is_available: next })
-        .eq("id", riderId);
+        .eq("id", id);
       if (error) throw error;
       setOnline(next);
+      if (!next) {
+        setOffer(null);
+        setOrders([]);
+      } else {
+        const declined = await loadMyDeclinedDeliveryIds(id);
+        setDeclinedIds(declined);
+        await refreshPending(driverCoords, declined);
+      }
     } catch (err) {
       Alert.alert(
         "Could not update status",
@@ -126,29 +272,38 @@ export default function DriverHomeScreen() {
     if (!profile?.id) return;
     setAccepting(true);
     try {
-      const riderId = await ensureRiderId(profile.id);
-      const { error } = await supabase
-        .from("deliveries")
-        .update({ rider_id: riderId, status: "accepted" })
-        .eq("id", order.id)
-        .eq("status", "pending");
-      if (error) throw error;
+      const claimed = await acceptDeliveryAtomic(order.id);
       setOffer(null);
-      router.push(`/rider/active/${order.id}` as never);
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+      setActiveTripId(claimed.id);
+      router.push(`/rider/active/${claimed.id}` as never);
     } catch (err) {
       Alert.alert(
         "Could not accept",
-        err instanceof Error ? err.message : "Try again."
+        err instanceof Error ? err.message : "Ride may have been taken."
       );
+      await refreshPending(driverCoords, declinedIds);
     } finally {
       setAccepting(false);
     }
   };
 
-  const decline = (order: Delivery) => {
-    setDismissed((prev) => [...prev, order.id]);
-    setOrders((prev) => prev.filter((o) => o.id !== order.id));
-    setOffer(null);
+  const decline = async (order: Delivery) => {
+    try {
+      const id = riderId ?? (await ensureRiderId(profile!.id));
+      setRiderId(id);
+      await declineDeliveryForRider(order.id, id);
+      const nextDeclined = new Set(declinedIds);
+      nextDeclined.add(order.id);
+      setDeclinedIds(nextDeclined);
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+      setOffer(null);
+    } catch (err) {
+      Alert.alert(
+        "Could not decline",
+        err instanceof Error ? err.message : "Try again."
+      );
+    }
   };
 
   return (
@@ -157,21 +312,27 @@ export default function DriverHomeScreen() {
         map={
           <RouteMap
             fullBleed
-            center={config.center}
+            center={mapCenter}
             pickup={
               preview?.pickup_lat != null
                 ? {
-                    lat: preview.pickup_lat,
-                    lng: preview.pickup_lng!,
+                    lat: Number(preview.pickup_lat),
+                    lng: Number(preview.pickup_lng),
                     label: shortAddress(preview.pickup_address),
                   }
-                : undefined
+                : driverCoords
+                  ? {
+                      lat: driverCoords.lat,
+                      lng: driverCoords.lng,
+                      label: "You",
+                    }
+                  : undefined
             }
             dropoff={
               preview?.delivery_lat != null
                 ? {
-                    lat: preview.delivery_lat,
-                    lng: preview.delivery_lng!,
+                    lat: Number(preview.delivery_lat),
+                    lng: Number(preview.delivery_lng),
                     label: shortAddress(preview.delivery_address),
                   }
                 : undefined
@@ -192,13 +353,18 @@ export default function DriverHomeScreen() {
                 Alert.alert("Safety", "Need help?", [
                   {
                     text: "WhatsApp support",
-                    onPress: () => Linking.openURL("https://wa.me/2348000000000"),
+                    onPress: () =>
+                      Linking.openURL("https://wa.me/2348000000000"),
                   },
                   { text: "Close", style: "cancel" },
                 ])
               }
             >
-              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+              <Ionicons
+                name="shield-checkmark"
+                size={18}
+                color={colors.primary}
+              />
             </Pressable>
             <Pressable
               style={styles.iconBtn}
@@ -235,8 +401,8 @@ export default function DriverHomeScreen() {
               <View style={styles.offlineCard}>
                 <Text style={styles.offlineTitle}>Ready when you are</Text>
                 <Text style={styles.offlineSub}>
-                  Go online to receive nearby ride requests with upfront
-                  earnings.
+                  Go online to receive nearby ride requests within about{" "}
+                  {DRIVER_MATCH_RADIUS_KM} km.
                 </Text>
               </View>
             ) : loading ? (
@@ -245,7 +411,8 @@ export default function DriverHomeScreen() {
               <View style={styles.offlineCard}>
                 <Text style={styles.offlineTitle}>Looking for trips</Text>
                 <Text style={styles.offlineSub}>
-                  Stay in a busy area. New requests in {city} will appear here.
+                  Stay nearby. New pending requests around you appear here
+                  automatically.
                 </Text>
               </View>
             ) : (
@@ -258,7 +425,8 @@ export default function DriverHomeScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.queueTitle}>
-                    {orders.length} nearby request{orders.length === 1 ? "" : "s"}
+                    {orders.length} nearby request
+                    {orders.length === 1 ? "" : "s"}
                   </Text>
                   <Text style={styles.queueSub} numberOfLines={1}>
                     Next: {shortAddress(orders[0].pickup_address)}

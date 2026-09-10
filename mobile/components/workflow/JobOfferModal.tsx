@@ -3,6 +3,7 @@ import { formatCurrency, shortAddress } from "@/lib/format";
 import type { Delivery } from "@/lib/deliveries";
 import { distanceKm } from "@/lib/geo";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
+import { rideTypeFromNotes } from "@/lib/ride-matching";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -84,7 +85,9 @@ export function JobOfferModal({
           </View>
 
           <View style={styles.topMeta}>
-            <Text style={styles.eyebrow}>New trip request · {left}s</Text>
+            <Text style={styles.eyebrow}>
+              {rideTypeFromNotes(order.notes)} · {left}s
+            </Text>
             <Text style={styles.fee}>{formatCurrency(order.estimated_fee)}</Text>
           </View>
 

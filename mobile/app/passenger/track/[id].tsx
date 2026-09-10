@@ -13,6 +13,7 @@ import type { Delivery } from "@/lib/deliveries";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
 import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
 import { fetchDrivingRoute } from "@/lib/routing";
+import { cancelPendingDelivery, rideTypeFromNotes } from "@/lib/ride-matching";
 import { supabase } from "@/lib/supabase";
 import {
   PASSENGER_TIMELINE_LABELS,
@@ -49,6 +50,26 @@ export default function PassengerTrackScreen() {
   const [error, setError] = useState<string | null>(null);
   const [rated, setRated] = useState(false);
   const [ratingBusy, setRatingBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const hydrateDriver = useCallback(async (riderRowId: string) => {
+    const { data: rider } = await supabase
+      .from("riders")
+      .select("user_id, rating, vehicle_type")
+      .eq("id", riderRowId)
+      .maybeSingle();
+    setVehicleType(rider?.vehicle_type ?? null);
+    setRating(rider?.rating != null ? Number(rider.rating) : null);
+    if (rider?.user_id) {
+      const { data: user } = await supabase
+        .from("users")
+        .select("full_name, phone")
+        .eq("id", rider.user_id)
+        .maybeSingle();
+      setRiderName(user?.full_name?.split(" ")[0] ?? "Driver");
+      setRiderPhone(user?.phone ?? null);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -91,22 +112,7 @@ export default function PassengerTrackScreen() {
     }
 
     if (data.rider_id) {
-      const { data: rider } = await supabase
-        .from("riders")
-        .select("user_id, rating, vehicle_type")
-        .eq("id", data.rider_id)
-        .maybeSingle();
-      setVehicleType(rider?.vehicle_type ?? null);
-      setRating(rider?.rating != null ? Number(rider.rating) : null);
-      if (rider?.user_id) {
-        const { data: user } = await supabase
-          .from("users")
-          .select("full_name, phone")
-          .eq("id", rider.user_id)
-          .maybeSingle();
-        setRiderName(user?.full_name?.split(" ")[0] ?? "Driver");
-        setRiderPhone(user?.phone ?? null);
-      }
+      await hydrateDriver(data.rider_id);
     }
 
     if (profile?.id) {
@@ -120,7 +126,7 @@ export default function PassengerTrackScreen() {
     }
 
     setLoading(false);
-  }, [id, profile?.id]);
+  }, [id, profile?.id, hydrateDriver]);
 
   useEffect(() => {
     load();
@@ -140,7 +146,11 @@ export default function PassengerTrackScreen() {
         },
         (payload) => {
           if (payload.new && typeof payload.new === "object") {
-            setDelivery(payload.new as Delivery);
+            const next = payload.new as Delivery;
+            setDelivery(next);
+            if (next.rider_id && next.status !== "pending") {
+              void hydrateDriver(next.rider_id);
+            }
           }
         }
       )
@@ -148,7 +158,7 @@ export default function PassengerTrackScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [delivery?.id]);
+  }, [delivery?.id, hydrateDriver]);
 
   const km = useMemo(() => {
     if (
@@ -204,6 +214,36 @@ export default function PassengerTrackScreen() {
     } finally {
       setRatingBusy(false);
     }
+  };
+
+  const cancelRide = async () => {
+    if (!delivery || delivery.status !== "pending" || cancelling) return;
+    Alert.alert(
+      "Cancel ride?",
+      "Your request is still waiting for a driver. Cancel this trip?",
+      [
+        { text: "Keep waiting", style: "cancel" },
+        {
+          text: "Cancel ride",
+          style: "destructive",
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await cancelPendingDelivery(delivery.tracking_id);
+              Alert.alert("Cancelled", "Your ride request was cancelled.");
+              router.replace("/passenger" as never);
+            } catch (err) {
+              Alert.alert(
+                "Could not cancel",
+                err instanceof Error ? err.message : "Try again."
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -309,16 +349,30 @@ export default function PassengerTrackScreen() {
           </View>
 
           {searching ? (
-            <FindingCourier
-              city={delivery.city}
-              trackingId={delivery.tracking_id}
-            />
+            <>
+              <FindingCourier
+                city={delivery.city}
+                trackingId={delivery.tracking_id}
+                title="Finding your driver"
+                subtitle="Waiting for a nearby driver to accept. This screen updates automatically when someone claims your ride."
+              />
+              <Pressable
+                style={[styles.cancelRideBtn, cancelling && { opacity: 0.6 }]}
+                onPress={cancelRide}
+                disabled={cancelling}
+              >
+                <Text style={styles.cancelRideText}>
+                  {cancelling ? "Cancelling…" : "Cancel ride"}
+                </Text>
+              </Pressable>
+            </>
           ) : (
             <View style={styles.driverCard}>
               <ContactBar
                 name={riderName}
                 phone={riderPhone}
                 subtitle={[
+                  rideTypeFromNotes(delivery.notes),
                   vehicleType ? vehicleType : "Driver",
                   rating != null ? `★ ${rating.toFixed(1)}` : null,
                   formatCurrency(delivery.estimated_fee),
@@ -331,7 +385,7 @@ export default function PassengerTrackScreen() {
                   Vehicle · {vehicleType ?? "Car"}
                 </Text>
                 <Text style={styles.metaLine}>
-                  Plate · Pending verification
+                  Plate · {vehicleType ? "On file with driver" : "—"}
                 </Text>
               </View>
             </View>
@@ -464,4 +518,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   actionText: { fontWeight: "800", color: colors.primaryDark },
+  cancelRideBtn: {
+    alignItems: "center",
+    paddingVertical: 14,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  cancelRideText: { fontWeight: "800", color: colors.danger },
 });

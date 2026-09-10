@@ -1,15 +1,14 @@
 import { EmptyState } from "@/components/ui/Card";
-import { CityChips } from "@/components/ui/CityChips";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { colors, radii } from "@/constants/theme";
+import { DRIVER_MATCH_RADIUS_KM } from "@/lib/ride-matching";
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function DriverDiscoverScreen() {
-  const [city, setCity] = useState("Lagos");
   const [jobs, setJobs] = useState(0);
 
   useFocusEffect(
@@ -19,26 +18,26 @@ export default function DriverDiscoverScreen() {
           .from("deliveries")
           .select("id", { count: "exact", head: true })
           .eq("status", "pending")
-          .eq("city", city);
+          .is("rider_id", null);
         setJobs(count ?? 0);
       })();
-    }, [city])
+    }, [])
   );
 
   return (
     <Screen>
       <ScreenHeader
         title="Discover"
-        subtitle="Opportunities and demand near you"
+        subtitle="Demand across open ride requests"
       />
-      <CityChips value={city} onChange={setCity} />
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{city} demand</Text>
+        <Text style={styles.cardTitle}>Open requests</Text>
         <Text style={styles.cardValue}>
-          {jobs} open request{jobs === 1 ? "" : "s"}
+          {jobs} pending trip{jobs === 1 ? "" : "s"}
         </Text>
         <Text style={styles.cardSub}>
-          Stay online on Home to receive timed trip offers.
+          Go online on Home to receive nearby offers within about{" "}
+          {DRIVER_MATCH_RADIUS_KM} km — new requests appear automatically.
         </Text>
       </View>
       <EmptyState

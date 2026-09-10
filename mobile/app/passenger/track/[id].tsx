@@ -509,9 +509,16 @@ export default function PassengerTrackScreen() {
                 trackingId={delivery.tracking_id}
                 title="Finding your driver"
                 subtitle="Waiting for a nearby driver to accept. This screen updates automatically when someone claims your ride."
+                pickupLabel={delivery.pickup_address}
+                dropoffLabel={delivery.delivery_address}
+                rideType={rideTypeFromNotes(delivery.notes)}
               />
               <Pressable
-                style={[styles.cancelRideBtn, cancelling && { opacity: 0.6 }]}
+                style={({ pressed }) => [
+                  styles.cancelRideBtn,
+                  cancelling && { opacity: 0.6 },
+                  pressed && { opacity: 0.85 },
+                ]}
                 onPress={cancelRide}
                 disabled={cancelling}
               >
@@ -522,28 +529,40 @@ export default function PassengerTrackScreen() {
             </>
           ) : (
             <View style={styles.driverCard}>
-              <ContactBar
-                name={riderName}
-                phone={riderPhone}
-                subtitle={[
-                  rideTypeFromNotes(delivery.notes),
-                  vehicleType ? vehicleType : "Driver",
-                  rating != null ? `★ ${rating.toFixed(1)}` : null,
-                  formatCurrency(delivery.estimated_fee),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
-              {locationLabel ? (
-                <Text style={styles.liveLine}>{locationLabel}</Text>
-              ) : null}
-              <View style={styles.driverMeta}>
-                <Text style={styles.metaLine}>
-                  Vehicle · {vehicleType ?? "Car"}
-                </Text>
-                <Text style={styles.metaLine}>
-                  Plate · {vehicleType ? "On file with driver" : "—"}
-                </Text>
+              <View style={styles.driverPanel}>
+                <ContactBar
+                  name={riderName}
+                  phone={riderPhone}
+                  subtitle={[
+                    rideTypeFromNotes(delivery.notes),
+                    vehicleType ? vehicleType : "Driver",
+                    rating != null ? `★ ${rating.toFixed(1)}` : null,
+                    formatCurrency(delivery.estimated_fee),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                />
+                {locationLabel ? (
+                  <View style={styles.livePill}>
+                    <View
+                      style={[
+                        styles.liveDot,
+                        hasFreshDriver
+                          ? { backgroundColor: colors.success }
+                          : { backgroundColor: colors.warning },
+                      ]}
+                    />
+                    <Text style={styles.liveLine}>{locationLabel}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.driverMeta}>
+                  <Text style={styles.metaLine}>
+                    Vehicle · {vehicleType ?? "Car"}
+                  </Text>
+                  <Text style={styles.metaLine}>
+                    Fare · {formatCurrency(delivery.estimated_fee)}
+                  </Text>
+                </View>
               </View>
             </View>
           )}
@@ -649,7 +668,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 10,
   },
-  stageTitle: { fontSize: 18, fontWeight: "900", color: colors.dark },
+  stageTitle: {
+    fontSize: 19,
+    fontWeight: "900",
+    color: colors.dark,
+    letterSpacing: -0.3,
+  },
   stageDetail: {
     color: colors.muted,
     fontSize: 13,
@@ -657,10 +681,29 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   driverCard: { gap: 8 },
+  driverPanel: {
+    backgroundColor: colors.white,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 12,
+  },
+  livePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.full,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
   liveLine: {
     fontSize: 12,
     fontWeight: "700",
     color: colors.primaryDark,
+    flex: 1,
   },
   driverMeta: {
     backgroundColor: colors.surfaceAlt,
@@ -669,8 +712,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaLine: { color: colors.dark, fontWeight: "600", fontSize: 13 },
-  stops: { gap: 8 },
-  stop: { color: colors.dark, fontSize: 13, lineHeight: 18 },
+  stops: {
+    gap: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.lg,
+    padding: 14,
+  },
+  stop: { color: colors.dark, fontSize: 13, lineHeight: 18, fontWeight: "600" },
   dotGreen: { color: colors.primary, fontWeight: "900" },
   dotGold: { color: colors.secondaryDark, fontWeight: "900" },
   actions: { flexDirection: "row", gap: 10 },

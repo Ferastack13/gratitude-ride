@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { Button } from "@/components/ui/Button";
-import { colors, radii } from "@/constants/theme";
+import { colors, radii, shadows } from "@/constants/theme";
 import type { Delivery } from "@/lib/deliveries";
 import {
   formatCurrency,
@@ -160,8 +160,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 16,
     gap: 4,
+    ...shadows.card,
   },
-  stage: { fontWeight: "900", fontSize: 18, color: colors.dark },
+  stage: {
+    fontWeight: "900",
+    fontSize: 18,
+    color: colors.dark,
+    letterSpacing: -0.3,
+  },
   detail: { color: colors.muted, lineHeight: 20 },
   label: {
     fontSize: 11,

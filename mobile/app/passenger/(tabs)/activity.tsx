@@ -1,34 +1,15 @@
-import { Badge } from "@/components/ui/Badge";
+import { TripActivityCard } from "@/components/passenger/TripActivityCard";
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
-import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { colors, radii } from "@/constants/theme";
+import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import type { Delivery } from "@/lib/deliveries";
-import {
-  formatCurrency,
-  formatStatus,
-  shortAddress,
-  statusTone,
-} from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-function rideTypeFromNotes(notes: string | null | undefined) {
-  const n = (notes ?? "").toLowerCase();
-  if (n.includes("express")) return "Express";
-  if (n.includes("comfort") || n.includes("care")) return "Comfort";
-  if (n.includes("standard") || n.includes("ride")) return "Standard";
-  return "Ride";
-}
+const ACTIVE = new Set(["pending", "accepted", "picked_up", "in_transit"]);
 
 export default function PassengerActivityScreen() {
   const { profile } = useAuth();
@@ -64,6 +45,16 @@ export default function PassengerActivityScreen() {
     }, [load])
   );
 
+  const { active, past } = useMemo(() => {
+    const a: Delivery[] = [];
+    const p: Delivery[] = [];
+    for (const row of rows) {
+      if (ACTIVE.has(row.status)) a.push(row);
+      else p.push(row);
+    }
+    return { active: a, past: p };
+  }, [rows]);
+
   if (loading) {
     return (
       <Screen>
@@ -74,58 +65,71 @@ export default function PassengerActivityScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Activity" subtitle="Your trips" />
+      <View style={styles.head}>
+        <Text style={styles.title}>Activity</Text>
+        <Text style={styles.sub}>Your trips with Gratitude Ride</Text>
+      </View>
+
       {rows.length === 0 ? (
         <EmptyState
           title="No trips yet"
-          message="When you book a ride, it will show up here."
+          message="When you book a ride, your history will show up here."
           actionLabel="Where to?"
           onAction={() => router.push("/passenger/where-to" as never)}
         />
       ) : (
-        rows.map((row) => (
-          <Pressable
-            key={row.id}
-            style={styles.row}
-            onPress={() =>
-              router.push(`/passenger/trip/${row.tracking_id}` as never)
-            }
-          >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.addr} numberOfLines={1}>
-                {shortAddress(row.pickup_address)} →{" "}
-                {shortAddress(row.delivery_address)}
-              </Text>
-              <Text style={styles.meta}>
-                {rideTypeFromNotes(row.notes)} ·{" "}
-                {formatCurrency(row.estimated_fee)}
-                {row.created_at
-                  ? ` · ${new Date(row.created_at).toLocaleString()}`
-                  : ""}
-              </Text>
-            </View>
-            <Badge
-              label={formatStatus(row.status)}
-              tone={statusTone(row.status)}
-            />
-          </Pressable>
-        ))
+        <View style={styles.list}>
+          {active.length > 0 ? (
+            <>
+              <Text style={styles.section}>In progress</Text>
+              {active.map((row) => (
+                <TripActivityCard
+                  key={row.id}
+                  delivery={row}
+                  onPress={() =>
+                    router.push(`/passenger/track/${row.tracking_id}` as never)
+                  }
+                />
+              ))}
+            </>
+          ) : null}
+
+          {past.length > 0 ? (
+            <>
+              <Text style={styles.section}>Past trips</Text>
+              {past.map((row) => (
+                <TripActivityCard
+                  key={row.id}
+                  delivery={row}
+                  onPress={() =>
+                    router.push(`/passenger/trip/${row.tracking_id}` as never)
+                  }
+                />
+              ))}
+            </>
+          ) : null}
+        </View>
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
+  head: { gap: 4, marginBottom: 4 },
+  title: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: colors.dark,
+    letterSpacing: -0.5,
   },
-  addr: { fontWeight: "800", color: colors.dark, fontSize: 14 },
-  meta: { color: colors.muted, fontSize: 12, fontWeight: "600" },
+  sub: { color: colors.muted, fontSize: 14, fontWeight: "600" },
+  list: { gap: 12 },
+  section: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
 });

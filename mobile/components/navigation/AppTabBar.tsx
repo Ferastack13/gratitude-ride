@@ -87,6 +87,23 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
             route.name === "index" && label === "Hub"
               ? "bicycle"
               : ICONS[route.name] ?? "ellipse";
+          const filled: Record<string, IconName> = {
+            home: "home",
+            "grid-outline": "grid",
+            "receipt-outline": "receipt",
+            "person-outline": "person",
+            "diamond-outline": "diamond",
+            "cash-outline": "cash",
+            "mail-outline": "mail",
+            "briefcase-outline": "briefcase",
+            "people-outline": "people",
+            "card-outline": "card",
+            cube: "cube",
+            map: "map",
+            menu: "menu",
+          };
+          const displayIcon =
+            focused && filled[iconName] ? filled[iconName] : iconName;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -114,8 +131,15 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 pressed && { opacity: 0.75 },
               ]}
             >
-              <Ionicons name={iconName} size={22} color={color} />
-              <Text style={[styles.label, { color }]} numberOfLines={1}>
+              <Ionicons name={displayIcon} size={22} color={color} />
+              <Text
+                style={[
+                  styles.label,
+                  { color },
+                  focused && styles.labelOn,
+                ]}
+                numberOfLines={1}
+              >
                 {label}
               </Text>
             </Pressable>
@@ -157,5 +181,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     fontWeight: "700",
+  },
+  labelOn: {
+    fontWeight: "800",
   },
 });

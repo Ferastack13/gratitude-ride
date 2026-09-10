@@ -1,3 +1,4 @@
+import { LocationRow } from "@/components/passenger/LocationRow";
 import { colors, radii, shadows } from "@/constants/theme";
 import { resolveCurrentLocation, placeParams } from "@/lib/location";
 import { getRecentPlaces } from "@/lib/client-prefs";
@@ -198,7 +199,10 @@ export default function WhereToScreen() {
           <Pressable style={styles.back} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={20} color={colors.dark} />
           </Pressable>
-          <Text style={styles.title}>Where are you going?</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Plan your trip</Text>
+            <Text style={styles.subtitle}>Pickup → Destination</Text>
+          </View>
         </View>
 
         <View style={styles.fields}>
@@ -222,6 +226,11 @@ export default function WhereToScreen() {
                   : pickup?.title || "Search pickup location"}
               </Text>
             </View>
+            {focus === "pickup" ? (
+              <View style={styles.focusPill}>
+                <Text style={styles.focusPillText}>Editing</Text>
+              </View>
+            ) : null}
           </Pressable>
 
           <View style={styles.rail} />
@@ -246,6 +255,11 @@ export default function WhereToScreen() {
                 {dropoff?.title || "Where to?"}
               </Text>
             </View>
+            {focus === "dropoff" ? (
+              <View style={styles.focusPill}>
+                <Text style={styles.focusPillText}>Editing</Text>
+              </View>
+            ) : null}
           </Pressable>
         </View>
 
@@ -265,11 +279,22 @@ export default function WhereToScreen() {
             returnKeyType="search"
           />
           {loading ? <ActivityIndicator color={colors.primary} /> : null}
+          {query.length > 0 && !loading ? (
+            <Pressable onPress={() => setQuery("")}>
+              <Ionicons name="close-circle" size={18} color={colors.mutedLight} />
+            </Pressable>
+          ) : null}
         </View>
 
         {locMessage ? <Text style={styles.locMsg}>{locMessage}</Text> : null}
 
-        <Pressable style={styles.currentRow} onPress={useCurrentLocation}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.currentRow,
+            pressed && { opacity: 0.88 },
+          ]}
+          onPress={useCurrentLocation}
+        >
           <View style={styles.currentIcon}>
             <Ionicons name="locate" size={18} color={colors.primary} />
           </View>
@@ -292,7 +317,7 @@ export default function WhereToScreen() {
           data={suggestions}
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 24, gap: 4 }}
+          contentContainerStyle={{ paddingBottom: 28, paddingHorizontal: 8 }}
           ListEmptyComponent={
             !loading ? (
               <Text style={styles.empty}>
@@ -303,23 +328,15 @@ export default function WhereToScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => onSelect(item)}>
-              <View style={styles.rowIcon}>
-                <Ionicons
-                  name={
-                    query.trim().length >= 2 ? "location-outline" : "time-outline"
-                  }
-                  size={18}
-                  color={colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text style={styles.rowSub} numberOfLines={2}>
-                  {item.subtitle || item.address}
-                </Text>
-              </View>
-            </Pressable>
+            <LocationRow
+              title={item.title}
+              subtitle={item.subtitle || item.address}
+              icon={
+                query.trim().length >= 2 ? "location-outline" : "time-outline"
+              }
+              tone={query.trim().length >= 2 ? "dropoff" : "recent"}
+              onPress={() => onSelect(item)}
+            />
           )}
         />
       </KeyboardAvoidingView>
@@ -338,16 +355,18 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.card,
   },
-  title: { flex: 1, fontSize: 22, fontWeight: "900", color: colors.dark },
+  title: { fontSize: 22, fontWeight: "900", color: colors.dark, letterSpacing: -0.4 },
+  subtitle: { color: colors.muted, fontSize: 13, fontWeight: "600", marginTop: 2 },
   fields: {
     marginHorizontal: 16,
     backgroundColor: colors.white,
@@ -362,7 +381,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
   },
   fieldOn: { backgroundColor: colors.primarySoft },
   dot: { width: 10, height: 10, borderRadius: 5 },
@@ -373,8 +392,20 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
-  fieldValue: { fontSize: 15, fontWeight: "700", color: colors.dark, marginTop: 2 },
+  fieldValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.dark,
+    marginTop: 2,
+  },
   placeholder: { color: colors.mutedLight, fontWeight: "600" },
+  focusPill: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  focusPillText: { color: colors.white, fontSize: 10, fontWeight: "800" },
   rail: {
     height: 1,
     backgroundColor: colors.border,
@@ -389,12 +420,19 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: colors.white,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
+    ...shadows.soft,
   },
-  search: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.dark, padding: 0 },
+  search: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.dark,
+    padding: 0,
+  },
   locMsg: {
     marginHorizontal: 18,
     marginTop: 10,
@@ -409,10 +447,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   currentIcon: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
@@ -423,30 +462,11 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 16,
     marginHorizontal: 18,
-    marginBottom: 6,
+    marginBottom: 4,
     fontWeight: "900",
     color: colors.dark,
-    fontSize: 15,
+    fontSize: 16,
   },
   error: { marginHorizontal: 18, color: colors.danger, fontSize: 13 },
-  empty: { marginHorizontal: 18, color: colors.muted, marginTop: 8 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginHorizontal: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-  },
-  rowIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowTitle: { fontWeight: "800", color: colors.dark, fontSize: 15 },
-  rowSub: { color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 16 },
+  empty: { marginHorizontal: 10, color: colors.muted, marginTop: 8 },
 });

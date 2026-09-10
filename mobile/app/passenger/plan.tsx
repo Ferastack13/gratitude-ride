@@ -1,4 +1,6 @@
+import { RideTypeCard } from "@/components/passenger/RideTypeCard";
 import { RouteMap } from "@/components/maps/RouteMap";
+import { Button } from "@/components/ui/Button";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { pushRecentPlace } from "@/lib/client-prefs";
@@ -163,7 +165,6 @@ export default function PassengerPlanScreen() {
       if (error) throw error;
 
       await pushRecentPlace(dropoff);
-      // Go straight to Track while pending — Finding Driver waits for REAL accept
       router.replace(`/passenger/track/${data.tracking_id}` as never);
     } catch (err) {
       Alert.alert(
@@ -179,12 +180,10 @@ export default function PassengerPlanScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.missing}>Pickup and destination are required.</Text>
-        <Pressable
-          style={styles.primaryBtn}
+        <Button
+          label="Choose locations"
           onPress={() => router.replace("/passenger/where-to" as never)}
-        >
-          <Text style={styles.primaryText}>Choose locations</Text>
-        </Pressable>
+        />
       </SafeAreaView>
     );
   }
@@ -214,6 +213,8 @@ export default function PassengerPlanScreen() {
           contentContainerStyle={styles.sheetBody}
           keyboardShouldPersistTaps="handled"
         >
+          <Text style={styles.sheetTitle}>Confirm your ride</Text>
+
           <View style={styles.stops}>
             <View style={styles.stopRow}>
               <View style={[styles.stopDot, { backgroundColor: colors.primary }]} />
@@ -249,15 +250,18 @@ export default function PassengerPlanScreen() {
               <ActivityIndicator color={colors.primary} />
             ) : (
               <>
-                <Text style={styles.meta}>
-                  {route ? `${route.distanceKm.toFixed(1)} km` : "—"}
-                </Text>
-                <Text style={styles.metaDot}>·</Text>
-                <Text style={styles.meta}>
-                  {route ? `${driveMin} min trip` : "—"}
-                </Text>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    {route ? `${route.distanceKm.toFixed(1)} km` : "—"}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    {route ? `${driveMin} min` : "—"}
+                  </Text>
+                </View>
                 {route?.source === "estimate" ? (
-                  <Text style={styles.metaHint}> · estimate</Text>
+                  <Text style={styles.metaHint}>estimate</Text>
                 ) : null}
               </>
             )}
@@ -269,23 +273,14 @@ export default function PassengerPlanScreen() {
             const optFare = route ? quoteRideFare(route.distanceKm, opt) : 0;
             const optEta = route ? quotePickupEtaMin(driveMin, opt) : 0;
             return (
-              <Pressable
+              <RideTypeCard
                 key={opt.id}
-                style={[styles.option, selected && styles.optionOn]}
+                option={opt}
+                selected={selected}
+                fareLabel={route ? formatCurrency(optFare) : "—"}
+                etaLabel={`${optEta} min away`}
                 onPress={() => setRideId(opt.id)}
-              >
-                <View style={styles.optionIcon}>
-                  <Ionicons name={opt.icon} size={20} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.optionTitle}>{opt.title}</Text>
-                  <Text style={styles.optionDesc}>{opt.description}</Text>
-                  <Text style={styles.optionEta}>{optEta} min away</Text>
-                </View>
-                <Text style={styles.optionFare}>
-                  {route ? formatCurrency(optFare) : "—"}
-                </Text>
-              </Pressable>
+              />
             );
           })}
 
@@ -295,27 +290,25 @@ export default function PassengerPlanScreen() {
               <Text style={styles.summaryFare}>
                 {routing ? "…" : formatCurrency(fare)}
               </Text>
-              <Text style={styles.pricingNote}>
-                Local quote · connect backend pricing later
-              </Text>
+              <Text style={styles.pricingNote}>Local quote · {option.title}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.summaryLabel}>Driver ETA</Text>
+              <Text style={styles.summaryLabel}>Pickup ETA</Text>
               <Text style={styles.summaryEta}>{pickupEta} min</Text>
             </View>
           </View>
 
-          <Pressable
-            style={[styles.primaryBtn, (submitting || routing) && { opacity: 0.6 }]}
-            disabled={submitting || routing || !route}
+          <Button
+            label={
+              submitting
+                ? "Requesting…"
+                : `Confirm ${option.title} · ${formatCurrency(fare)}`
+            }
             onPress={confirmRide}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Text style={styles.primaryText}>Confirm Ride</Text>
-            )}
-          </Pressable>
+            loading={submitting}
+            disabled={routing || !route}
+            size="lg"
+          />
         </ScrollView>
       </View>
     </View>
@@ -332,7 +325,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   missing: { textAlign: "center", color: colors.muted, fontWeight: "600" },
-  mapPane: { flex: 1.1, minHeight: 240 },
+  mapPane: { flex: 1.05, minHeight: 220 },
   mapTop: { position: "absolute", top: 0, left: 0, right: 0, padding: 12 },
   back: {
     width: 42,
@@ -346,10 +339,10 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   sheet: {
-    flex: 1.25,
+    flex: 1.35,
     backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderTopWidth: 1,
     borderColor: colors.border,
     ...shadows.float,
@@ -361,13 +354,19 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.border,
     marginTop: 10,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  sheetBody: { padding: 16, paddingBottom: 36, gap: 10 },
+  sheetBody: { padding: 16, paddingBottom: 36, gap: 12 },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.dark,
+    letterSpacing: -0.3,
+  },
   stops: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radii.lg,
-    padding: 12,
+    padding: 14,
   },
   stopRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   stopDot: { width: 10, height: 10, borderRadius: 5 },
@@ -389,55 +388,27 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    minHeight: 22,
+    gap: 8,
+    minHeight: 28,
   },
-  meta: { fontWeight: "700", color: colors.dark, fontSize: 13 },
-  metaDot: { color: colors.muted },
-  metaHint: { color: colors.muted, fontSize: 12 },
-  section: { fontWeight: "900", fontSize: 16, color: colors.dark, marginTop: 4 },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
+  chip: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  optionOn: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  optionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionTitle: { fontWeight: "900", color: colors.dark, fontSize: 15 },
-  optionDesc: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  optionEta: { color: colors.primaryDark, fontSize: 12, fontWeight: "700", marginTop: 2 },
-  optionFare: { fontWeight: "900", color: colors.dark, fontSize: 15 },
+  chipText: { fontWeight: "700", color: colors.dark, fontSize: 12 },
+  metaHint: { color: colors.muted, fontSize: 12, fontWeight: "600" },
+  section: { fontWeight: "900", fontSize: 16, color: colors.dark, marginTop: 2 },
   summary: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 4,
-    paddingTop: 8,
+    marginTop: 2,
+    paddingTop: 4,
+    paddingBottom: 4,
   },
   summaryLabel: { color: colors.muted, fontSize: 12, fontWeight: "700" },
   summaryFare: { fontSize: 26, fontWeight: "900", color: colors.dark },
   summaryEta: { fontSize: 22, fontWeight: "900", color: colors.dark },
   pricingNote: { color: colors.mutedLight, fontSize: 11, marginTop: 2 },
-  primaryBtn: {
-    marginTop: 8,
-    backgroundColor: colors.primary,
-    borderRadius: radii.full,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  primaryText: { color: colors.white, fontWeight: "900", fontSize: 16 },
 });

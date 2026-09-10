@@ -34,11 +34,11 @@ export const TRIP_STAGE_COPY: Record<
   { title: string; detail: string }
 > = {
   searching: {
-    title: "Searching for driver",
-    detail: "We’re matching a nearby driver to your trip.",
+    title: "Finding your driver",
+    detail: "We’re matching a nearby driver. This updates when someone accepts.",
   },
   driver_found: {
-    title: "Driver found",
+    title: "Driver on the way",
     detail: "Your driver is heading to the pickup point.",
   },
   arriving: {
@@ -46,11 +46,11 @@ export const TRIP_STAGE_COPY: Record<
     detail: "Stay ready at the pickup location.",
   },
   arrived: {
-    title: "Driver arrived",
+    title: "Driver has arrived",
     detail: "Meet your driver at the pickup point.",
   },
   in_trip: {
-    title: "Trip started",
+    title: "Enjoy the ride",
     detail: "You’re on the way to your destination.",
   },
   completed: {

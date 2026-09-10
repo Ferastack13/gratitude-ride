@@ -6,7 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 /**
  * Passenger root = Stack.
  * Permanent tabs live in (tabs). Ride-booking steps are stack screens
- * (where-to, plan, track, trip) — never bottom-nav items.
+ * (service details, where-to, plan, track, trip) — never bottom-nav items.
  */
 export default function PassengerLayout() {
   const { session, loading, ready, profile, accountType } = useAuth();
@@ -39,6 +39,7 @@ export default function PassengerLayout() {
       }}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="service/[id]" />
       <Stack.Screen name="where-to" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="plan" />
       <Stack.Screen name="book" />

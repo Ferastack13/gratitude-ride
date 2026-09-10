@@ -46,10 +46,7 @@ export default function PassengerServicesScreen() {
                   pressed && { opacity: 0.7 },
                 ]}
                 onPress={() =>
-                  router.push({
-                    pathname: "/passenger/where-to",
-                    params: { serviceId: s.id },
-                  } as never)
+                  router.push(`/passenger/service/${s.id}` as never)
                 }
               >
                 <View
@@ -85,7 +82,7 @@ export default function PassengerServicesScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.ctaTitle}>Need a ride now?</Text>
           <Text style={styles.ctaBody}>
-            Start with Where to? — set pickup and destination in seconds.
+            Skip service details and go straight to pickup & destination.
           </Text>
         </View>
         <View style={styles.ctaBtn}>

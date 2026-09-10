@@ -1,498 +1,389 @@
-import { QuickAction } from "@/components/home/QuickAction";
-import { SectionLabel } from "@/components/home/SectionLabel";
-import { Screen } from "@/components/ui/Screen";
-import { colors } from "@/constants/theme";
+import { RouteMap } from "@/components/maps/RouteMap";
+import { StatusChip } from "@/components/ui/StatusChip";
+import { JobOfferModal } from "@/components/workflow/JobOfferModal";
+import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
+import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { formatCurrency } from "@/lib/format";
+import { getCityConfig } from "@/lib/cities";
+import { ensureRiderId, type Delivery } from "@/lib/deliveries";
+import { formatCurrency, shortAddress } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Animated,
+  ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 
-export default function RiderHubScreen() {
+export default function DriverHomeScreen() {
   const { profile } = useAuth();
   const [online, setOnline] = useState(false);
-  const [earnings, setEarnings] = useState(0);
-  const [deliveries, setDeliveries] = useState(0);
-  const [rating, setRating] = useState(5);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [cityDemand, setCityDemand] = useState<
-    { city: string; jobs: number }[]
-  >([
-    { city: "Lagos", jobs: 0 },
-    { city: "Abuja", jobs: 0 },
-    { city: "Port Harcourt", jobs: 0 },
-  ]);
   const [toggling, setToggling] = useState(false);
+  const [city, setCity] = useState("Lagos");
+  const [orders, setOrders] = useState<Delivery[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [offer, setOffer] = useState<Delivery | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  const [todayEarn, setTodayEarn] = useState(0);
   const [activeTripId, setActiveTripId] = useState<string | null>(null);
-  const pulse = useRef(new Animated.Value(1)).current;
 
-  const firstName = profile?.full_name?.split(" ")[0] ?? "Rider";
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const config = getCityConfig(city);
+  const firstName = profile?.full_name?.split(" ")[0] ?? "Driver";
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!profile?.id) return;
-
-    supabase
+    const { data: rider } = await supabase
       .from("riders")
-      .select("is_available, earnings, total_deliveries, rating")
+      .select("id, is_available")
       .eq("user_id", profile.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!data) return;
-        setOnline(Boolean(data.is_available));
-        setEarnings(Number(data.earnings || 0));
-        setDeliveries(Number(data.total_deliveries || 0));
-        setRating(Number(data.rating || 5));
-      });
+      .maybeSingle();
+    setOnline(Boolean(rider?.is_available));
 
-    (async () => {
-      const { count } = await supabase
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    if (rider?.id) {
+      const { data: todayRows } = await supabase
         .from("deliveries")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending");
-      setPendingCount(count ?? 0);
-
-      const cities = ["Lagos", "Abuja", "Port Harcourt"] as const;
-      const demand = await Promise.all(
-        cities.map(async (city) => {
-          const { count: cityCount } = await supabase
-            .from("deliveries")
-            .select("id", { count: "exact", head: true })
-            .eq("status", "pending")
-            .eq("city", city);
-          return { city, jobs: cityCount ?? 0 };
-        })
+        .select("estimated_fee, actual_fee")
+        .eq("rider_id", rider.id)
+        .eq("status", "delivered")
+        .gte("delivered_at", start.toISOString());
+      const sum = (todayRows ?? []).reduce(
+        (acc, r) => acc + Number(r.actual_fee ?? r.estimated_fee ?? 0),
+        0
       );
-      setCityDemand(demand);
+      setTodayEarn(sum);
 
-      const { data: rider } = await supabase
-        .from("riders")
+      const { data: active } = await supabase
+        .from("deliveries")
         .select("id")
-        .eq("user_id", profile.id)
+        .eq("rider_id", rider.id)
+        .in("status", ["accepted", "picked_up", "in_transit"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
-      if (rider?.id) {
-        const { data: active } = await supabase
-          .from("deliveries")
-          .select("id")
-          .eq("rider_id", rider.id)
-          .in("status", ["accepted", "picked_up", "in_transit"])
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        setActiveTripId(active?.id ?? null);
-      }
-    })();
-  }, [profile?.id]);
+      setActiveTripId(active?.id ?? null);
+    }
+
+    const { data } = await supabase
+      .from("deliveries")
+      .select("*")
+      .eq("status", "pending")
+      .eq("city", city)
+      .order("created_at", { ascending: true });
+    const next = (data ?? []).filter((row) => !dismissed.includes(row.id));
+    setOrders(next);
+    setLoading(false);
+  }, [profile?.id, city, dismissed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      load();
+    }, [load])
+  );
 
   useEffect(() => {
-    if (!online) {
-      pulse.setValue(1);
+    if (!online || orders.length === 0 || activeTripId) {
+      setOffer(null);
       return;
     }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1.18,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 900,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [online, pulse]);
+    setOffer(orders[0]);
+  }, [online, orders, activeTripId]);
+
+  const preview = useMemo(() => orders[0], [orders]);
 
   const toggleOnline = async () => {
     if (!profile?.id || toggling) return;
-    const next = !online;
     setToggling(true);
-    setOnline(next);
-    const { error } = await supabase
-      .from("riders")
-      .update({ is_available: next })
-      .eq("user_id", profile.id);
-    if (error) setOnline(!next);
-    setToggling(false);
+    try {
+      const riderId = await ensureRiderId(profile.id);
+      const next = !online;
+      const { error } = await supabase
+        .from("riders")
+        .update({ is_available: next })
+        .eq("id", riderId);
+      if (error) throw error;
+      setOnline(next);
+    } catch (err) {
+      Alert.alert(
+        "Could not update status",
+        err instanceof Error ? err.message : "Try again."
+      );
+    } finally {
+      setToggling(false);
+    }
   };
 
-  const todayGoal = 15000;
-  const progress = useMemo(
-    () => Math.min(1, earnings / todayGoal || 0.12),
-    [earnings]
-  );
+  const accept = async (order: Delivery) => {
+    if (!profile?.id) return;
+    setAccepting(true);
+    try {
+      const riderId = await ensureRiderId(profile.id);
+      const { error } = await supabase
+        .from("deliveries")
+        .update({ rider_id: riderId, status: "accepted" })
+        .eq("id", order.id)
+        .eq("status", "pending");
+      if (error) throw error;
+      setOffer(null);
+      router.push(`/rider/active/${order.id}` as never);
+    } catch (err) {
+      Alert.alert(
+        "Could not accept",
+        err instanceof Error ? err.message : "Try again."
+      );
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const decline = (order: Delivery) => {
+    setDismissed((prev) => [...prev, order.id]);
+    setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    setOffer(null);
+  };
 
   return (
-    <Screen>
-      <View style={styles.hero}>
-        <View style={styles.glowA} />
-        <View style={styles.glowB} />
-
-        <View style={styles.brandRow}>
-          <Text style={styles.brand}>Gratitude Ride</Text>
-          <View style={[styles.statusChip, online && styles.statusOnline]}>
-            <Animated.View
-              style={[
-                styles.dot,
-                online && styles.dotOnline,
-                { transform: [{ scale: pulse }] },
-              ]}
-            />
-            <Text style={styles.statusText}>{online ? "Live" : "Offline"}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.greeting}>
-          {greeting}, {firstName}
-        </Text>
-        <Text style={styles.heroSub}>
-          Premium courier mode · Lagos · Abuja · Port Harcourt
-        </Text>
-
-        <View style={styles.earnBlock}>
-          <Text style={styles.earnLabel}>Today's earnings</Text>
-          <Text style={styles.earnValue}>{formatCurrency(earnings)}</Text>
-          <View style={styles.goalTrack}>
-            <View style={[styles.goalFill, { width: `${progress * 100}%` }]} />
-          </View>
-          <Text style={styles.goalHint}>
-            Goal {formatCurrency(todayGoal)} · {Math.round(progress * 100)}%
-            complete
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={toggleOnline}
-          disabled={toggling}
-          style={({ pressed }) => [
-            styles.power,
-            online ? styles.powerOn : styles.powerOff,
-            pressed && { opacity: 0.9 },
-          ]}
-        >
-          <View style={styles.powerLeft}>
-            <Ionicons
-              name={online ? "radio" : "power"}
-              size={22}
-              color={online ? colors.dark : colors.white}
-            />
-            <View>
-              <Text style={[styles.powerTitle, online && styles.powerTitleOn]}>
-                {online ? "You're online" : "Go online"}
-              </Text>
-              <Text style={[styles.powerHint, online && styles.powerHintOn]}>
-                {online
-                  ? `${pendingCount} open jobs nearby`
-                  : "Start receiving delivery requests"}
-              </Text>
+    <>
+      <MapShell
+        map={
+          <RouteMap
+            fullBleed
+            center={config.center}
+            pickup={
+              preview?.pickup_lat != null
+                ? {
+                    lat: preview.pickup_lat,
+                    lng: preview.pickup_lng!,
+                    label: shortAddress(preview.pickup_address),
+                  }
+                : undefined
+            }
+            dropoff={
+              preview?.delivery_lat != null
+                ? {
+                    lat: preview.delivery_lat,
+                    lng: preview.delivery_lng!,
+                    label: shortAddress(preview.delivery_address),
+                  }
+                : undefined
+            }
+            delta={0.08}
+          />
+        }
+        top={
+          <View style={styles.topRow}>
+            <View style={styles.earnPill}>
+              <Text style={styles.earnLabel}>Today</Text>
+              <Text style={styles.earnValue}>{formatCurrency(todayEarn)}</Text>
             </View>
+            <View style={{ flex: 1 }} />
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() =>
+                Alert.alert("Safety", "Need help?", [
+                  {
+                    text: "WhatsApp support",
+                    onPress: () => Linking.openURL("https://wa.me/2348000000000"),
+                  },
+                  { text: "Close", style: "cancel" },
+                ])
+              }
+            >
+              <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => router.push("/rider/orders" as never)}
+            >
+              <Ionicons name="options-outline" size={18} color={colors.dark} />
+            </Pressable>
           </View>
-          <View style={[styles.switch, online && styles.switchOn]}>
-            <View style={[styles.knob, online && styles.knobOn]} />
-          </View>
-        </Pressable>
-      </View>
-
-      <View style={styles.metrics}>
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{deliveries}</Text>
-          <Text style={styles.metricLabel}>Trips</Text>
-        </View>
-        <View style={styles.metricDivider} />
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{rating.toFixed(1)}★</Text>
-          <Text style={styles.metricLabel}>Rating</Text>
-        </View>
-        <View style={styles.metricDivider} />
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{pendingCount}</Text>
-          <Text style={styles.metricLabel}>Queue</Text>
-        </View>
-      </View>
-
-      <SectionLabel title="Quick launch" />
-      <View style={styles.actions}>
-        <QuickAction
-          icon="list"
-          label="Orders"
-          hint="Incoming jobs"
-          onPress={() => router.push("/rider/orders")}
-          tone="green"
-        />
-        <QuickAction
-          icon="wallet"
-          label="Wallet"
-          hint="Payouts"
-          onPress={() => router.push("/rider/earnings")}
-        />
-        <QuickAction
-          icon="navigate"
-          label="Navigate"
-          hint="Active trip"
-          onPress={() =>
-            activeTripId
-              ? router.push(`/rider/active/${activeTripId}` as never)
-              : router.push("/rider/orders")
-          }
-          tone="dark"
-        />
-      </View>
-
-      <SectionLabel title="City demand" action="Live" />
-      <View style={styles.demandCard}>
-        {cityDemand.map((row) => {
-          const heat = Math.min(1, Math.max(0.08, row.jobs / 12));
-          return (
-            <View key={row.city} style={styles.demandRow}>
-              <View style={styles.demandMeta}>
-                <Text style={styles.demandCity}>{row.city}</Text>
-                <Text style={styles.demandJobs}>{row.jobs} open</Text>
+        }
+        sheet={
+          <View style={styles.sheet}>
+            <SheetHandle />
+            <View style={styles.helloRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.hello}>Hi {firstName}</Text>
+                <StatusChip
+                  label={online ? "You're online" : "You're offline"}
+                  tone={online ? "online" : "offline"}
+                />
               </View>
-              <View style={styles.heatTrack}>
-                <View style={[styles.heatFill, { width: `${heat * 100}%` }]} />
-              </View>
+              {activeTripId ? (
+                <Pressable
+                  style={styles.activeBtn}
+                  onPress={() =>
+                    router.push(`/rider/active/${activeTripId}` as never)
+                  }
+                >
+                  <Text style={styles.activeBtnText}>Resume trip</Text>
+                </Pressable>
+              ) : null}
             </View>
-          );
-        })}
-      </View>
 
-      <SectionLabel title="Shift tips" />
-      <View style={styles.tips}>
-        <View style={styles.tip}>
-          <Ionicons name="flash" size={16} color={colors.secondaryDark} />
-          <Text style={styles.tipText}>
-            Peak windows: 7–10am and 5–9pm in Lagos VI & Lekki.
-          </Text>
-        </View>
-        <View style={styles.tip}>
-          <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
-          <Text style={styles.tipText}>
-            Keep your status Online and accept within 30s for better ranking.
-          </Text>
-        </View>
-      </View>
+            {!online ? (
+              <View style={styles.offlineCard}>
+                <Text style={styles.offlineTitle}>Ready when you are</Text>
+                <Text style={styles.offlineSub}>
+                  Go online to receive nearby ride requests with upfront
+                  earnings.
+                </Text>
+              </View>
+            ) : loading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : orders.length === 0 ? (
+              <View style={styles.offlineCard}>
+                <Text style={styles.offlineTitle}>Looking for trips</Text>
+                <Text style={styles.offlineSub}>
+                  Stay in a busy area. New requests in {city} will appear here.
+                </Text>
+              </View>
+            ) : (
+              <Pressable
+                style={styles.queueCard}
+                onPress={() => router.push("/rider/orders" as never)}
+              >
+                <View style={styles.queueIcon}>
+                  <Ionicons name="flash" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.queueTitle}>
+                    {orders.length} nearby request{orders.length === 1 ? "" : "s"}
+                  </Text>
+                  <Text style={styles.queueSub} numberOfLines={1}>
+                    Next: {shortAddress(orders[0].pickup_address)}
+                  </Text>
+                </View>
+                <Text style={styles.queueFee}>
+                  {formatCurrency(orders[0].estimated_fee)}
+                </Text>
+              </Pressable>
+            )}
 
-      <Pressable
-        style={styles.queueCard}
-        onPress={() => router.push("/rider/orders")}
-      >
-        <View style={styles.queueTop}>
-          <Text style={styles.queueTitle}>Job queue</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-        </View>
-        <Text style={styles.queueBody}>
-          {online
-            ? pendingCount > 0
-              ? `${pendingCount} pending jobs nearby. Open Orders for timed Accept offers with upfront payout.`
-              : "You're live. New requests will pop as timed offers — Accept within 20s."
-            : "Go online to unlock timed job offers across Lagos, Abuja, and Port Harcourt."}
-        </Text>
-      </Pressable>
-    </Screen>
+            <Pressable
+              style={[styles.goBtn, online && styles.goBtnOff]}
+              onPress={toggleOnline}
+              disabled={toggling}
+            >
+              <Ionicons
+                name={online ? "pause" : "play"}
+                size={20}
+                color={colors.white}
+              />
+              <Text style={styles.goText}>
+                {toggling
+                  ? "Updating…"
+                  : online
+                    ? "Go offline"
+                    : "Go online"}
+              </Text>
+            </Pressable>
+          </View>
+        }
+      />
+
+      <JobOfferModal
+        order={offer}
+        visible={!!offer && online && !activeTripId}
+        accepting={accepting}
+        onAccept={() => offer && accept(offer)}
+        onDecline={() => offer && decline(offer)}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    backgroundColor: colors.mapInk,
-    borderRadius: 28,
-    padding: 20,
-    overflow: "hidden",
-    gap: 10,
+  topRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  earnPill: {
+    backgroundColor: colors.white,
+    borderRadius: radii.full,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
-  glowA: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: colors.primary,
-    opacity: 0.22,
-    top: -40,
-    right: -30,
-  },
-  glowB: {
-    position: "absolute",
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: colors.secondary,
-    opacity: 0.12,
-    bottom: -50,
-    left: -20,
-  },
-  brandRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  brand: {
-    color: colors.secondary,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    fontSize: 12,
-  },
-  statusChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusOnline: { backgroundColor: "rgba(34,197,94,0.2)" },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.mutedLight,
-  },
-  dotOnline: { backgroundColor: colors.primaryGlow },
-  statusText: { color: colors.white, fontSize: 12, fontWeight: "700" },
-  greeting: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-    marginTop: 8,
-  },
-  heroSub: { color: "rgba(255,255,255,0.62)", fontSize: 13, lineHeight: 18 },
-  earnBlock: { marginTop: 10, gap: 6 },
   earnLabel: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.7,
   },
-  earnValue: {
-    color: colors.white,
-    fontSize: 36,
+  earnValue: { fontSize: 15, fontWeight: "900", color: colors.dark },
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.card,
+  },
+  sheet: { gap: 12 },
+  helloRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  hello: {
+    fontSize: 22,
     fontWeight: "900",
-    letterSpacing: -1,
+    color: colors.dark,
+    marginBottom: 6,
   },
-  goalTrack: {
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    overflow: "hidden",
-    marginTop: 4,
+  activeBtn: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.full,
   },
-  goalFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.secondary,
-  },
-  goalHint: { color: "rgba(255,255,255,0.55)", fontSize: 12 },
-  power: {
-    marginTop: 8,
-    borderRadius: 18,
+  activeBtnText: { color: colors.primaryDark, fontWeight: "800", fontSize: 12 },
+  offlineCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     padding: 14,
+    gap: 4,
+  },
+  offlineTitle: { fontWeight: "900", color: colors.dark, fontSize: 15 },
+  offlineSub: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  queueCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.lg,
+    padding: 12,
   },
-  powerOn: { backgroundColor: colors.secondary },
-  powerOff: { backgroundColor: colors.darkElevated },
-  powerLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  powerTitle: { color: colors.white, fontWeight: "800", fontSize: 16 },
-  powerTitleOn: { color: colors.dark },
-  powerHint: { color: "rgba(255,255,255,0.65)", fontSize: 12, marginTop: 2 },
-  powerHintOn: { color: "rgba(15,15,15,0.65)" },
-  switch: {
-    width: 48,
-    height: 28,
-    borderRadius: 999,
-    backgroundColor: "#333",
-    padding: 3,
+  queueIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: "center",
     justifyContent: "center",
   },
-  switchOn: { backgroundColor: colors.dark },
-  knob: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.white,
-  },
-  knobOn: { alignSelf: "flex-end" },
-  metrics: {
+  queueTitle: { fontWeight: "900", color: colors.dark, fontSize: 14 },
+  queueSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  queueFee: { fontWeight: "900", color: colors.primaryDark },
+  goBtn: {
     flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 16,
-  },
-  metric: { flex: 1, alignItems: "center", gap: 4 },
-  metricValue: { fontSize: 18, fontWeight: "900", color: colors.dark },
-  metricLabel: { fontSize: 12, color: colors.muted, fontWeight: "600" },
-  metricDivider: { width: 1, backgroundColor: colors.border },
-  actions: { flexDirection: "row", gap: 10 },
-  demandCard: {
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 14,
-  },
-  demandRow: { gap: 8 },
-  demandMeta: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-  },
-  demandCity: { fontWeight: "800", color: colors.dark },
-  demandJobs: { color: colors.muted, fontSize: 12, fontWeight: "600" },
-  heatTrack: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-  },
-  heatFill: {
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-  },
-  tips: { gap: 10 },
-  tip: {
-    flexDirection: "row",
-    gap: 10,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    alignItems: "flex-start",
-  },
-  tipText: { flex: 1, color: colors.dark, fontSize: 13, lineHeight: 18 },
-  queueCard: {
-    backgroundColor: colors.dark,
-    borderRadius: 20,
-    padding: 18,
+    justifyContent: "center",
     gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 56,
+    ...shadows.float,
   },
-  queueTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  queueTitle: { color: colors.white, fontWeight: "800", fontSize: 16 },
-  queueBody: { color: "rgba(255,255,255,0.68)", fontSize: 13, lineHeight: 19 },
+  goBtnOff: { backgroundColor: colors.dark },
+  goText: { color: colors.white, fontWeight: "900", fontSize: 17 },
 });

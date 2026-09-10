@@ -36,7 +36,7 @@ function slideLabel(status: Delivery["status"]) {
     case "in_transit":
       return "Slide to start trip";
     case "delivered":
-      return "Slide to complete delivery";
+      return "Slide to complete trip";
     case "accepted":
       return "Slide to accept";
     default:
@@ -162,10 +162,10 @@ export default function ActiveDeliveryScreen() {
     return (
       <View style={styles.pad}>
         <EmptyState
-          title="Delivery not found"
-          message="This job may have been cancelled."
-          actionLabel="Orders"
-          onAction={() => router.replace("/rider/orders")}
+          title="Trip not found"
+          message="This request may have been cancelled."
+          actionLabel="Back to Home"
+          onAction={() => router.replace("/rider")}
         />
       </View>
     );
@@ -237,8 +237,19 @@ export default function ActiveDeliveryScreen() {
           <ContactBar
             name={clientName}
             phone={clientPhone}
-            subtitle="Client · call if gate codes needed"
+            subtitle="Passenger · call if you need directions"
           />
+
+          <View style={styles.routeBlock}>
+            <Text style={styles.routeLabel}>Pickup</Text>
+            <Text style={styles.routeAddr} numberOfLines={2}>
+              {delivery.pickup_address}
+            </Text>
+            <Text style={[styles.routeLabel, { marginTop: 10 }]}>Drop-off</Text>
+            <Text style={styles.routeAddr} numberOfLines={2}>
+              {delivery.delivery_address}
+            </Text>
+          </View>
 
           <StatusTimeline status={delivery.status} />
 
@@ -249,7 +260,7 @@ export default function ActiveDeliveryScreen() {
               onConfirm={advance}
             />
           ) : (
-            <Text style={styles.done}>Delivery completed</Text>
+            <Text style={styles.done}>Trip completed</Text>
           )}
         </View>
       }
@@ -285,6 +296,20 @@ const styles = StyleSheet.create({
     color: colors.dark,
   },
   payout: { color: colors.primary, fontWeight: "800", marginTop: 2 },
+  routeBlock: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 16,
+    padding: 14,
+    gap: 2,
+  },
+  routeLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  routeAddr: { fontSize: 14, fontWeight: "700", color: colors.dark, lineHeight: 20 },
   done: {
     textAlign: "center",
     fontWeight: "800",

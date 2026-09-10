@@ -7,9 +7,9 @@ import { useAuth } from "@/context/auth";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
-export default function RiderMenuScreen() {
-  const { profile, signOut } = useAuth();
-  const first = profile?.full_name?.split(" ")[0] ?? "Driver";
+export default function BusinessAccountScreen() {
+  const { profile, signOut, setAccountTypePreference } = useAuth();
+  const first = profile?.full_name?.split(" ")[0] ?? "B";
 
   return (
     <Screen>
@@ -18,40 +18,30 @@ export default function RiderMenuScreen() {
           <Text style={styles.avatarText}>{first.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{profile?.full_name ?? "Driver"}</Text>
+          <Text style={styles.name}>{profile?.full_name ?? "Business"}</Text>
           <Text style={styles.meta}>{profile?.email}</Text>
-          <Text style={styles.role}>Driver account</Text>
+          <Text style={styles.role}>Client / Business account</Text>
         </View>
       </View>
 
       <Card padded={false} style={{ paddingHorizontal: 12 }}>
-        <ListRow
-          icon="person-outline"
-          title="Account"
-          subtitle="Name, phone, email"
-        />
-        <ListRow
-          icon="car-outline"
-          title="Vehicle"
-          subtitle="Type and documents"
-        />
-        <ListRow
-          icon="notifications-outline"
-          title="Notifications"
-          onPress={() => router.push("/rider/inbox" as never)}
-        />
-        <ListRow
-          icon="wallet-outline"
-          title="Wallet & payouts"
-          onPress={() => router.push("/rider/earnings" as never)}
-        />
+        <ListRow icon="business-outline" title="Company profile" />
+        <ListRow icon="people-outline" title="Team members" subtitle="Coming soon" />
         <ListRow
           icon="help-circle-outline"
-          title="Help"
+          title="Support"
           onPress={() => Linking.openURL("https://wa.me/2348000000000")}
         />
       </Card>
 
+      <Button
+        label="Switch to Passenger"
+        variant="outline"
+        onPress={async () => {
+          await setAccountTypePreference("passenger");
+          router.replace("/passenger" as never);
+        }}
+      />
       <Button label="Sign out" variant="ghost" onPress={signOut} />
     </Screen>
   );

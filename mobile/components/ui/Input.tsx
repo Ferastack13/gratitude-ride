@@ -18,15 +18,16 @@ export function Input({ label, style, ...props }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 8 },
-  label: { fontSize: 14, fontWeight: "600", color: colors.dark },
+  label: { fontSize: 13, fontWeight: "700", color: colors.dark },
   input: {
     backgroundColor: colors.white,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     color: colors.dark,
+    fontWeight: "600",
   },
 });

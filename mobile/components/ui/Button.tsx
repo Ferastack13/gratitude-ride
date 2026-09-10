@@ -1,13 +1,24 @@
-import { colors } from "@/constants/theme";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { colors, radii, shadows } from "@/constants/theme";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
   label: string;
   onPress: () => void;
   loading?: boolean;
-  variant?: "primary" | "secondary" | "ghost" | "outline" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "outline" | "danger" | "dark";
   disabled?: boolean;
-  size?: "md" | "sm";
+  size?: "md" | "sm" | "lg";
+  icon?: keyof typeof Ionicons.glyphMap;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function Button({
@@ -17,8 +28,13 @@ export function Button({
   variant = "primary",
   disabled,
   size = "md",
+  icon,
+  style,
 }: Props) {
   const isDisabled = disabled || loading;
+  const lightLabel =
+    variant === "secondary" || variant === "ghost" || variant === "outline";
+
   return (
     <Pressable
       onPress={onPress}
@@ -26,35 +42,48 @@ export function Button({
       style={({ pressed }) => [
         styles.base,
         size === "sm" && styles.sm,
+        size === "lg" && styles.lg,
         variant === "primary" && styles.primary,
         variant === "secondary" && styles.secondary,
         variant === "ghost" && styles.ghost,
         variant === "outline" && styles.outline,
         variant === "danger" && styles.danger,
+        variant === "dark" && styles.dark,
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
+        style,
       ]}
     >
       {loading ? (
         <ActivityIndicator
           color={
-            variant === "primary" || variant === "danger"
+            variant === "primary" || variant === "danger" || variant === "dark"
               ? colors.white
               : colors.primary
           }
         />
       ) : (
-        <Text
-          style={[
-            styles.label,
-            size === "sm" && styles.smLabel,
-            variant === "secondary" && styles.secondaryLabel,
-            variant === "ghost" && styles.ghostLabel,
-            variant === "outline" && styles.outlineLabel,
-          ]}
-        >
-          {label}
-        </Text>
+        <View style={styles.row}>
+          {icon ? (
+            <Ionicons
+              name={icon}
+              size={18}
+              color={lightLabel ? colors.dark : colors.white}
+            />
+          ) : null}
+          <Text
+            style={[
+              styles.label,
+              size === "sm" && styles.smLabel,
+              size === "lg" && styles.lgLabel,
+              variant === "secondary" && styles.secondaryLabel,
+              variant === "ghost" && styles.ghostLabel,
+              variant === "outline" && styles.outlineLabel,
+            ]}
+          >
+            {label}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -62,27 +91,30 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 54,
+    borderRadius: radii.full,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    flexGrow: 1,
+    paddingHorizontal: 22,
   },
-  sm: { minHeight: 42, borderRadius: 12, paddingHorizontal: 14 },
-  primary: { backgroundColor: colors.primary },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sm: { minHeight: 42, paddingHorizontal: 14 },
+  lg: { minHeight: 58, paddingHorizontal: 24 },
+  primary: { backgroundColor: colors.primary, ...shadows.card },
   secondary: { backgroundColor: colors.secondary },
   ghost: { backgroundColor: "transparent" },
   outline: {
     backgroundColor: colors.white,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
   danger: { backgroundColor: colors.danger },
-  pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.55 },
-  label: { color: colors.white, fontSize: 16, fontWeight: "700" },
+  dark: { backgroundColor: colors.dark },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
+  disabled: { opacity: 0.45 },
+  label: { color: colors.white, fontSize: 16, fontWeight: "800" },
   smLabel: { fontSize: 14 },
+  lgLabel: { fontSize: 17 },
   secondaryLabel: { color: colors.dark },
   ghostLabel: { color: colors.primary },
   outlineLabel: { color: colors.dark },

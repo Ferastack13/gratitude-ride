@@ -2,24 +2,41 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
 import { colors } from "@/constants/theme";
+import {
+  accountTypeLabel,
+  roleForAccountType,
+  setAccountType,
+  type AccountType,
+} from "@/lib/account-type";
 import { getAuthRedirectUri } from "@/lib/auth-redirect";
 import { supabase } from "@/lib/supabase";
-import { Link, router } from "expo-router";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
-type Role = "client" | "rider";
+import { Link, router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function RegisterScreen() {
-  const [role, setRole] = useState<Role>("client");
+  const params = useLocalSearchParams<{ accountType?: string }>();
+  const accountType = (
+    params.accountType === "driver" ||
+    params.accountType === "passenger" ||
+    params.accountType === "business"
+      ? params.accountType
+      : "passenger"
+  ) as AccountType;
+
+  const role = roleForAccountType(accountType);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [vehicleType, setVehicleType] = useState("Motorcycle");
+  const [vehicleType, setVehicleType] = useState("Car");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAccountType(accountType).catch(() => undefined);
+  }, [accountType]);
 
   const onSubmit = async () => {
     setError(null);
@@ -34,6 +51,7 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
+    await setAccountType(accountType);
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -42,6 +60,7 @@ export default function RegisterScreen() {
           full_name: fullName.trim(),
           phone: phone.trim(),
           role,
+          account_type: accountType,
           vehicle_type: role === "rider" ? vehicleType.trim() : undefined,
         },
         emailRedirectTo: getAuthRedirectUri(),
@@ -66,26 +85,9 @@ export default function RegisterScreen() {
     <Screen>
       <Text style={styles.brand}>Gratitude Ride</Text>
       <Text style={styles.title}>Create account</Text>
-      <Text style={styles.subtitle}>Join as a {role}</Text>
-
-      <View style={styles.toggle}>
-        {(["client", "rider"] as const).map((item) => (
-          <Pressable
-            key={item}
-            onPress={() => setRole(item)}
-            style={[styles.toggleBtn, role === item && styles.toggleActive]}
-          >
-            <Text
-              style={[
-                styles.toggleLabel,
-                role === item && styles.toggleLabelActive,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Text style={styles.subtitle}>
+        Joining as {accountTypeLabel(accountType)}
+      </Text>
 
       <Input
         label="Full name"
@@ -122,7 +124,7 @@ export default function RegisterScreen() {
       {role === "rider" ? (
         <Input
           label="Vehicle type"
-          placeholder="Motorcycle, Bicycle, Car..."
+          placeholder="Car, Motorcycle, Bicycle..."
           value={vehicleType}
           onChangeText={setVehicleType}
         />
@@ -132,6 +134,10 @@ export default function RegisterScreen() {
       {message ? <Text style={styles.success}>{message}</Text> : null}
 
       <Button label="Create Account" onPress={onSubmit} loading={loading} />
+
+      <Link href={"/choose-account" as never} style={styles.link}>
+        Change account type
+      </Link>
 
       <View style={styles.row}>
         <Text style={styles.muted}>Already have an account? </Text>
@@ -153,18 +159,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 32, fontWeight: "800", color: colors.dark },
   subtitle: { fontSize: 15, color: colors.muted },
-  toggle: {
-    flexDirection: "row",
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  toggleActive: { backgroundColor: colors.primary },
-  toggleLabel: { textTransform: "capitalize", fontWeight: "700", color: colors.muted },
-  toggleLabelActive: { color: colors.white },
   error: {
     backgroundColor: colors.dangerSoft,
     color: colors.danger,
@@ -177,7 +171,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
   },
-  link: { color: colors.primary, fontWeight: "700" },
+  link: { color: colors.primary, fontWeight: "700", textAlign: "center" },
   row: { flexDirection: "row", justifyContent: "center", flexWrap: "wrap" },
   muted: { color: colors.muted },
 });

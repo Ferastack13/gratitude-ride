@@ -46,7 +46,7 @@ export default function LoginScreen() {
     <Screen>
       <Text style={styles.brand}>Gratitude Ride</Text>
       <Text style={styles.title}>Welcome back</Text>
-      <Text style={styles.subtitle}>Sign in to book or deliver packages</Text>
+      <Text style={styles.subtitle}>Sign in to continue your journey</Text>
 
       <Input
         label="Email"
@@ -76,8 +76,8 @@ export default function LoginScreen() {
 
       <View style={styles.row}>
         <Text style={styles.muted}>Don't have an account? </Text>
-        <Link href="/register" style={styles.link}>
-          Register
+        <Link href={"/choose-account" as never} style={styles.link}>
+          Get started
         </Link>
       </View>
     </Screen>

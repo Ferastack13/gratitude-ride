@@ -1,12 +1,20 @@
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
-import { colors, typography } from "@/constants/theme";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, shortAddress } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 type Trip = {
   id: string;
@@ -16,6 +24,7 @@ type Trip = {
   delivered_at: string | null;
   city: string;
   delivery_address: string;
+  pickup_address: string;
 };
 
 export default function RiderEarningsScreen() {
@@ -38,13 +47,13 @@ export default function RiderEarningsScreen() {
       const { data } = await supabase
         .from("deliveries")
         .select(
-          "id, tracking_id, estimated_fee, actual_fee, delivered_at, city, delivery_address"
+          "id, tracking_id, estimated_fee, actual_fee, delivered_at, city, delivery_address, pickup_address"
         )
         .eq("rider_id", rider.id)
         .eq("status", "delivered")
         .order("delivered_at", { ascending: false })
-        .limit(20);
-      setTrips(data ?? []);
+        .limit(30);
+      setTrips((data as Trip[]) ?? []);
     } else {
       setTrips([]);
     }
@@ -58,11 +67,28 @@ export default function RiderEarningsScreen() {
     }, [load])
   );
 
+  const todayTotal = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return trips
+      .filter((t) => t.delivered_at && new Date(t.delivered_at) >= start)
+      .reduce((sum, t) => sum + Number(t.actual_fee ?? t.estimated_fee), 0);
+  }, [trips]);
+
   const weekTotal = useMemo(() => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return trips
-      .filter((t) => t.delivered_at && new Date(t.delivered_at).getTime() > weekAgo)
+      .filter(
+        (t) => t.delivered_at && new Date(t.delivered_at).getTime() > weekAgo
+      )
       .reduce((sum, t) => sum + Number(t.actual_fee ?? t.estimated_fee), 0);
+  }, [trips]);
+
+  const weekTrips = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return trips.filter(
+      (t) => t.delivered_at && new Date(t.delivered_at).getTime() > weekAgo
+    ).length;
   }, [trips]);
 
   if (loading) {
@@ -75,90 +101,136 @@ export default function RiderEarningsScreen() {
 
   return (
     <Screen>
-      <Text style={styles.title}>Earnings</Text>
-      <Text style={styles.sub}>Track payouts from completed deliveries.</Text>
+      <ScreenHeader
+        title="Earnings"
+        right={
+          <Pressable
+            style={styles.help}
+            onPress={() =>
+              Alert.alert("Help", "Payouts are tracked from completed trips.")
+            }
+          >
+            <Text style={styles.helpText}>Help</Text>
+          </Pressable>
+        }
+      />
 
-      <View style={styles.hero}>
-        <Text style={styles.heroLabel}>Lifetime earnings</Text>
-        <Text style={styles.heroValue}>{formatCurrency(earnings)}</Text>
-        <View style={styles.heroStats}>
-          <View>
-            <Text style={styles.statValue}>{formatCurrency(weekTotal)}</Text>
-            <Text style={styles.statLabel}>This week</Text>
+      <Card style={styles.hero}>
+        <Text style={styles.range}>This week</Text>
+        <Text style={styles.big}>{formatCurrency(weekTotal)}</Text>
+        <View style={styles.metrics}>
+          <View style={styles.metric}>
+            <Text style={styles.metricVal}>{formatCurrency(todayTotal)}</Text>
+            <Text style={styles.metricLabel}>Today</Text>
           </View>
-          <View>
-            <Text style={styles.statValue}>{trips.length}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
+          <View style={styles.metric}>
+            <Text style={styles.metricVal}>{weekTrips}</Text>
+            <Text style={styles.metricLabel}>Trips</Text>
+          </View>
+          <View style={styles.metric}>
+            <Text style={styles.metricVal}>{formatCurrency(earnings)}</Text>
+            <Text style={styles.metricLabel}>Lifetime</Text>
           </View>
         </View>
-      </View>
+      </Card>
 
-      <Text style={styles.section}>Recent payouts</Text>
+      <Card>
+        <Text style={styles.walletTitle}>Wallet</Text>
+        <Text style={styles.walletBal}>{formatCurrency(earnings)}</Text>
+        <Text style={styles.walletHint}>
+          Available balance from completed trips
+        </Text>
+        <Pressable
+          style={styles.cashBtn}
+          onPress={() =>
+            Alert.alert(
+              "Payouts",
+              "Cash out will connect to your payout method soon."
+            )
+          }
+        >
+          <Text style={styles.cashText}>Cash out and more</Text>
+        </Pressable>
+      </Card>
+
+      <Text style={styles.section}>Trip history</Text>
       {trips.length === 0 ? (
         <EmptyState
-          title="No completed payouts yet"
-          message="Accept jobs from Orders and complete the delivery lifecycle to grow your wallet."
+          title="No completed trips yet"
+          message="Finished trips and earnings will show up here."
         />
       ) : (
-        <View style={styles.list}>
-          {trips.map((trip) => (
-            <Card key={trip.id}>
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.tracking}>{trip.tracking_id}</Text>
-                  <Text style={styles.addr} numberOfLines={1}>
-                    {trip.city} · {trip.delivery_address}
-                  </Text>
-                </View>
-                <Text style={styles.amount}>
-                  {formatCurrency(trip.actual_fee ?? trip.estimated_fee)}
+        trips.slice(0, 12).map((t) => (
+          <Card key={t.id} style={styles.tripCard}>
+            <View style={styles.tripRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tripFee}>
+                  {formatCurrency(Number(t.actual_fee ?? t.estimated_fee))}
+                </Text>
+                <Text style={styles.tripAddr} numberOfLines={1}>
+                  {shortAddress(t.pickup_address)} →{" "}
+                  {shortAddress(t.delivery_address)}
+                </Text>
+                <Text style={styles.tripMeta}>
+                  {t.city}
+                  {t.delivered_at
+                    ? ` · ${new Date(t.delivered_at).toLocaleDateString()}`
+                    : ""}
                 </Text>
               </View>
-            </Card>
-          ))}
-        </View>
+            </View>
+          </Card>
+        ))
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { ...typography.title, color: colors.dark },
-  sub: { ...typography.subtitle },
-  hero: {
-    backgroundColor: colors.mapInk,
-    borderRadius: 24,
-    padding: 20,
-    gap: 8,
+  help: {
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.full,
   },
-  heroLabel: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-  },
-  heroValue: {
-    color: colors.white,
+  helpText: { fontWeight: "800", color: colors.dark, fontSize: 12 },
+  hero: { gap: 10 },
+  range: { color: colors.muted, fontWeight: "700", fontSize: 13 },
+  big: {
     fontSize: 36,
     fontWeight: "900",
+    color: colors.dark,
     letterSpacing: -1,
   },
-  heroStats: {
-    flexDirection: "row",
-    gap: 28,
-    marginTop: 10,
+  metrics: { flexDirection: "row", gap: 8, marginTop: 4 },
+  metric: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 10,
   },
-  statValue: { color: colors.secondary, fontWeight: "900", fontSize: 18 },
-  statLabel: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 },
-  section: { ...typography.label, marginTop: 4 },
-  list: { gap: 10 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  tracking: {
-    fontFamily: "monospace",
-    fontWeight: "800",
+  metricVal: { fontWeight: "900", color: colors.dark, fontSize: 13 },
+  metricLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  walletTitle: { fontWeight: "900", fontSize: 16, color: colors.dark },
+  walletBal: { fontSize: 28, fontWeight: "900", color: colors.dark },
+  walletHint: { color: colors.muted, fontSize: 12 },
+  cashBtn: {
+    marginTop: 8,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.full,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cashText: { fontWeight: "800", color: colors.dark },
+  section: {
+    fontSize: 16,
+    fontWeight: "900",
     color: colors.dark,
+    marginTop: 8,
   },
-  addr: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  amount: { color: colors.primary, fontWeight: "900", fontSize: 16 },
+  tripCard: { ...shadows.card },
+  tripRow: { flexDirection: "row", alignItems: "center" },
+  tripFee: { fontWeight: "900", color: colors.dark, fontSize: 16 },
+  tripAddr: { color: colors.dark, fontWeight: "600", marginTop: 4, fontSize: 13 },
+  tripMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
 });

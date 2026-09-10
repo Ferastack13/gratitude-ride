@@ -7,9 +7,9 @@ import { useAuth } from "@/context/auth";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
-export default function RiderMenuScreen() {
-  const { profile, signOut } = useAuth();
-  const first = profile?.full_name?.split(" ")[0] ?? "Driver";
+export default function PassengerAccountScreen() {
+  const { profile, signOut, setAccountTypePreference } = useAuth();
+  const first = profile?.full_name?.split(" ")[0] ?? "P";
 
   return (
     <Screen>
@@ -18,40 +18,35 @@ export default function RiderMenuScreen() {
           <Text style={styles.avatarText}>{first.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{profile?.full_name ?? "Driver"}</Text>
+          <Text style={styles.name}>{profile?.full_name ?? "Passenger"}</Text>
           <Text style={styles.meta}>{profile?.email}</Text>
-          <Text style={styles.role}>Driver account</Text>
+          <Text style={styles.role}>Passenger account</Text>
         </View>
       </View>
 
       <Card padded={false} style={{ paddingHorizontal: 12 }}>
+        <ListRow icon="wallet-outline" title="Wallet" subtitle="Payment methods" />
         <ListRow
-          icon="person-outline"
-          title="Account"
-          subtitle="Name, phone, email"
-        />
-        <ListRow
-          icon="car-outline"
-          title="Vehicle"
-          subtitle="Type and documents"
-        />
-        <ListRow
-          icon="notifications-outline"
-          title="Notifications"
-          onPress={() => router.push("/rider/inbox" as never)}
-        />
-        <ListRow
-          icon="wallet-outline"
-          title="Wallet & payouts"
-          onPress={() => router.push("/rider/earnings" as never)}
+          icon="shield-checkmark-outline"
+          title="Safety"
+          subtitle="Trusted contacts & trip share"
         />
         <ListRow
           icon="help-circle-outline"
           title="Help"
           onPress={() => Linking.openURL("https://wa.me/2348000000000")}
         />
+        <ListRow icon="settings-outline" title="Settings" />
       </Card>
 
+      <Button
+        label="Switch to Business"
+        variant="outline"
+        onPress={async () => {
+          await setAccountTypePreference("business");
+          router.replace("/business" as never);
+        }}
+      />
       <Button label="Sign out" variant="ghost" onPress={signOut} />
     </Screen>
   );

@@ -1,10 +1,10 @@
 import { AppTabBar } from "@/components/navigation/AppTabBar";
 import { colors } from "@/constants/theme";
-import { homeForRole, useAuth } from "@/context/auth";
+import { useAuth } from "@/context/auth";
 import { Redirect, Tabs } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
-export default function RiderLayout() {
+export default function BusinessLayout() {
   const { session, loading, profile, accountType } = useAuth();
 
   if (loading) {
@@ -19,9 +19,11 @@ export default function RiderLayout() {
     return <Redirect href="/login" />;
   }
 
-  // Soft gate: clients/business shouldn't casually land on driver tabs
-  if (profile?.role === "client" && accountType !== "driver") {
-    return <Redirect href={homeForRole(profile.role, accountType) as never} />;
+  if (profile?.role === "rider" || accountType === "driver") {
+    return <Redirect href="/rider" />;
+  }
+  if (accountType !== "business") {
+    return <Redirect href={"/passenger" as never} />;
   }
 
   return (
@@ -36,13 +38,16 @@ export default function RiderLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="orders" options={{ title: "Discover" }} />
-      <Tabs.Screen name="earnings" options={{ title: "Earnings" }} />
-      <Tabs.Screen name="inbox" options={{ title: "Inbox" }} />
-      <Tabs.Screen name="profile" options={{ title: "Menu" }} />
+      <Tabs.Screen name="bookings" options={{ title: "Bookings" }} />
+      <Tabs.Screen name="billing" options={{ title: "Billing" }} />
+      <Tabs.Screen name="account" options={{ title: "Account" }} />
       <Tabs.Screen
-        name="active/[id]"
-        options={{ href: null, headerShown: false, title: "Active" }}
+        name="book"
+        options={{ href: null, headerShown: false, title: "Book" }}
+      />
+      <Tabs.Screen
+        name="track/[id]"
+        options={{ href: null, headerShown: false, title: "Track" }}
       />
     </Tabs>
   );

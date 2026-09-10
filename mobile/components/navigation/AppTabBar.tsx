@@ -11,10 +11,19 @@ const ICONS: Record<string, IconName> = {
   index: "home",
   book: "cube",
   deliveries: "map",
-  profile: "person",
-  // rider
-  orders: "list",
-  earnings: "wallet",
+  profile: "menu",
+  // rider / driver
+  orders: "diamond-outline",
+  earnings: "cash-outline",
+  inbox: "mail-outline",
+  // passenger
+  services: "grid-outline",
+  activity: "receipt-outline",
+  account: "person-outline",
+  // business
+  bookings: "briefcase-outline",
+  team: "people-outline",
+  billing: "card-outline",
 };
 
 /** Android-safe tab bar — sits above MapView and always receives taps. */

@@ -4,7 +4,7 @@ import { Redirect } from "expo-router";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 
 export default function Index() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, accountType, loading } = useAuth();
 
   if (loading) {
     return (
@@ -18,7 +18,7 @@ export default function Index() {
     return <Redirect href="/login" />;
   }
 
-  return <Redirect href={homeForRole(profile?.role)} />;
+  return <Redirect href={homeForRole(profile?.role, accountType) as never} />;
 }
 
 const styles = StyleSheet.create({

@@ -1,24 +1,30 @@
 export const colors = {
-  primary: "#16a34a",
-  primaryDark: "#15803d",
-  primarySoft: "#dcfce7",
-  primaryGlow: "#22c55e",
-  secondary: "#facc15",
-  secondaryDark: "#eab308",
-  secondarySoft: "#fef9c3",
-  dark: "#0f0f0f",
-  darkSurface: "#141414",
-  darkElevated: "#1c1c1c",
-  muted: "#737373",
-  mutedLight: "#a3a3a3",
-  surface: "#f4f6f3",
-  white: "#ffffff",
-  border: "#e4e8e2",
-  danger: "#ef4444",
-  dangerSoft: "#fef2f2",
-  warning: "#f59e0b",
-  warningSoft: "#fffbeb",
-  mapInk: "#0b1f14",
+  primary: "#1D61E7",
+  primaryDark: "#1549B8",
+  primarySoft: "#E8F0FE",
+  primaryGlow: "#4B84F0",
+  secondary: "#F5C518",
+  secondaryDark: "#D4A017",
+  secondarySoft: "#FFF8E1",
+  success: "#16A34A",
+  successSoft: "#DCFCE7",
+  dark: "#0F172A",
+  darkSurface: "#111827",
+  darkElevated: "#1F2937",
+  muted: "#6B7280",
+  mutedLight: "#9CA3AF",
+  surface: "#F5F7FB",
+  surfaceAlt: "#EEF2F8",
+  white: "#FFFFFF",
+  border: "#E5EAF2",
+  danger: "#EF4444",
+  dangerSoft: "#FEF2F2",
+  warning: "#F59E0B",
+  warningSoft: "#FFFBEB",
+  mapInk: "#0B1220",
+  pastelBlue: "#EAF1FF",
+  pastelGreen: "#EAF8F0",
+  pastelPurple: "#F3EAFF",
 } as const;
 
 export const spacing = {
@@ -27,14 +33,33 @@ export const spacing = {
   md: 16,
   lg: 22,
   xl: 28,
+  xxl: 36,
 } as const;
 
 export const radii = {
   sm: 12,
   md: 16,
   lg: 20,
-  xl: 28,
+  xl: 24,
+  xxl: 28,
   full: 999,
+} as const;
+
+export const shadows = {
+  card: {
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  float: {
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
 } as const;
 
 export const typography = {

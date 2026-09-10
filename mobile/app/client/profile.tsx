@@ -2,12 +2,12 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { colors } from "@/constants/theme";
-import { homeForRole, useAuth } from "@/context/auth";
+import { useAuth } from "@/context/auth";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function ClientProfileScreen() {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, setAccountTypePreference } = useAuth();
 
   return (
     <Screen>
@@ -26,14 +26,22 @@ export default function ClientProfileScreen() {
         ))}
       </Card>
 
-      {profile?.role === "rider" || profile?.role === "admin" ? (
-        <Button
-          label="Switch to Rider Hub"
-          variant="secondary"
-          onPress={() => router.replace(homeForRole("rider"))}
-        />
-      ) : null}
-
+      <Button
+        label="Open Passenger app"
+        variant="outline"
+        onPress={async () => {
+          await setAccountTypePreference("passenger");
+          router.replace("/passenger" as never);
+        }}
+      />
+      <Button
+        label="Open Business app"
+        variant="secondary"
+        onPress={async () => {
+          await setAccountTypePreference("business");
+          router.replace("/business" as never);
+        }}
+      />
       <Button label="Sign out" variant="ghost" onPress={signOut} />
     </Screen>
   );

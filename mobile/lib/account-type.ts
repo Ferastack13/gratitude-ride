@@ -29,14 +29,21 @@ export async function setAccountType(type: AccountType) {
   await AsyncStorage.setItem(KEY, type);
 }
 
+export type AppHome = "/rider" | "/passenger" | "/business" | "/login";
+
+/**
+ * Resolve where a signed-in user should land.
+ * Returns null when role/accountType are still unknown — callers must wait,
+ * never Redirect to /login while a session exists (that loops with auth layout).
+ */
 export function homeForAccount(
   role?: "client" | "rider" | "admin" | null,
   accountType?: AccountType | null
-) {
+): AppHome | null {
   if (role === "rider" || accountType === "driver") return "/rider";
   if (accountType === "business") return "/business";
   if (accountType === "passenger") return "/passenger";
-  // Legacy clients default to passenger experience
   if (role === "client" || role === "admin") return "/passenger";
-  return "/login";
+  // No role + no account type yet → still hydrating
+  return null;
 }

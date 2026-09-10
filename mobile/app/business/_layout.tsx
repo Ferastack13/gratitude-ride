@@ -5,9 +5,9 @@ import { Redirect, Tabs } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 export default function BusinessLayout() {
-  const { session, loading, profile, accountType } = useAuth();
+  const { session, loading, ready, profile, accountType } = useAuth();
 
-  if (loading) {
+  if (loading || !ready) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={colors.primary} />
@@ -22,7 +22,8 @@ export default function BusinessLayout() {
   if (profile?.role === "rider" || accountType === "driver") {
     return <Redirect href="/rider" />;
   }
-  if (accountType !== "business") {
+  // Only bounce when we know they chose passenger (null = still ok / default)
+  if (accountType === "passenger") {
     return <Redirect href={"/passenger" as never} />;
   }
 

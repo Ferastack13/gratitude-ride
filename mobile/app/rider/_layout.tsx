@@ -5,9 +5,9 @@ import { Redirect, Tabs } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 export default function RiderLayout() {
-  const { session, loading, profile, accountType } = useAuth();
+  const { session, loading, ready, profile, accountType } = useAuth();
 
-  if (loading) {
+  if (loading || !ready) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator color={colors.primary} />
@@ -19,8 +19,8 @@ export default function RiderLayout() {
     return <Redirect href="/login" />;
   }
 
-  // Soft gate: clients/business shouldn't casually land on driver tabs
-  if (profile?.role === "client" && accountType !== "driver") {
+  // Soft gate only when we know this is a non-driver client
+  if (profile?.role === "client" && accountType && accountType !== "driver") {
     return <Redirect href={homeForRole(profile.role, accountType) as never} />;
   }
 

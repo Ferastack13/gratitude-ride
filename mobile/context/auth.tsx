@@ -3,6 +3,7 @@ import {
   homeForAccount,
   setAccountType as persistAccountType,
   type AccountType,
+  type AppHome,
 } from "@/lib/account-type";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
@@ -13,6 +14,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,6 +27,8 @@ type AuthContextValue = {
   profile: Profile | null;
   accountType: AccountType | null;
   loading: boolean;
+  /** True once session bootstrap finished (profile may still be null if offline). */
+  ready: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setAccountTypePreference: (type: AccountType) => Promise<void>;
@@ -33,15 +37,23 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function loadProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabase
-    .from("users")
-    .select("id, email, full_name, phone, role, avatar_url, created_at, updated_at")
-    .eq("id", userId)
-    .maybeSingle();
-  return data;
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select(
+        "id, email, full_name, phone, role, avatar_url, created_at, updated_at"
+      )
+      .eq("id", userId)
+      .maybeSingle();
+    return data;
+  } catch {
+    return null;
+  }
 }
 
-function accountTypeFromMeta(meta: Record<string, unknown> | undefined): AccountType | null {
+function accountTypeFromMeta(
+  meta: Record<string, unknown> | undefined
+): AccountType | null {
   const v = meta?.account_type;
   if (v === "driver" || v === "passenger" || v === "business") return v;
   if (meta?.role === "rider") return "driver";
@@ -54,75 +66,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [accountType, setAccountTypeState] = useState<AccountType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const bootstrapped = useRef(false);
 
   const hydrateAccountType = useCallback(async (sess: Session | null) => {
-    const fromMeta = accountTypeFromMeta(sess?.user?.user_metadata);
+    if (!sess?.user) {
+      setAccountTypeState(null);
+      return null;
+    }
+
+    const fromMeta = accountTypeFromMeta(sess.user.user_metadata);
     if (fromMeta) {
       setAccountTypeState(fromMeta);
+      await persistAccountType(fromMeta).catch(() => undefined);
       return fromMeta;
     }
+
     const stored = await getAccountType();
     if (stored) {
       setAccountTypeState(stored);
       return stored;
     }
-    if (sess?.user) {
-      // Infer from DB role for legacy users
-      const p = await loadProfile(sess.user.id);
-      const inferred: AccountType = p?.role === "rider" ? "driver" : "passenger";
-      setAccountTypeState(inferred);
-      return inferred;
-    }
-    setAccountTypeState(null);
-    return null;
+
+    // Prefer DB role when reachable; otherwise default so routing never stalls.
+    const p = await loadProfile(sess.user.id);
+    const inferred: AccountType = p?.role === "rider" ? "driver" : "passenger";
+    setAccountTypeState(inferred);
+    await persistAccountType(inferred).catch(() => undefined);
+    return inferred;
   }, []);
+
+  const applySession = useCallback(
+    async (next: Session | null) => {
+      setSession(next);
+      if (!next?.user) {
+        setProfile(null);
+        setAccountTypeState(null);
+        return;
+      }
+      const [p] = await Promise.all([
+        loadProfile(next.user.id),
+        hydrateAccountType(next),
+      ]);
+      setProfile(p);
+    },
+    [hydrateAccountType]
+  );
 
   const refreshProfile = useCallback(async () => {
     const {
       data: { session: next },
     } = await supabase.auth.getSession();
-    setSession(next);
-    if (!next?.user) {
-      setProfile(null);
-      setAccountTypeState(null);
-      return;
-    }
-    setProfile(await loadProfile(next.user.id));
-    await hydrateAccountType(next);
-  }, [hydrateAccountType]);
+    await applySession(next);
+  }, [applySession]);
 
   useEffect(() => {
     let mounted = true;
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
-      setSession(data.session);
-      if (data.session?.user) {
-        setProfile(await loadProfile(data.session.user.id));
-        await hydrateAccountType(data.session);
-      }
+      await applySession(data.session);
+      if (!mounted) return;
+      bootstrapped.current = true;
       setLoading(false);
+      setReady(true);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, next) => {
-      setSession(next);
-      if (next?.user) {
-        setProfile(await loadProfile(next.user.id));
-        await hydrateAccountType(next);
-      } else {
-        setProfile(null);
-        setAccountTypeState(null);
-      }
+    } = supabase.auth.onAuthStateChange(async (event, next) => {
+      // Skip duplicate INITIAL_SESSION after getSession bootstrap.
+      if (event === "INITIAL_SESSION" && bootstrapped.current) return;
+      if (!mounted) return;
+      await applySession(next);
+      if (!mounted) return;
       setLoading(false);
+      setReady(true);
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [hydrateAccountType]);
+  }, [applySession]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
@@ -141,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       accountType,
       loading,
+      ready,
       signOut,
       refreshProfile,
       setAccountTypePreference,
@@ -150,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       accountType,
       loading,
+      ready,
       signOut,
       refreshProfile,
       setAccountTypePreference,
@@ -167,7 +195,10 @@ export function useAuth() {
   return ctx;
 }
 
-/** @deprecated Prefer homeForAccount via useAuth().accountType */
-export function homeForRole(role?: UserRole | null, accountType?: AccountType | null) {
-  return homeForAccount(role, accountType) as "/rider" | "/passenger" | "/business" | "/login";
+/** Safe home href for redirects — never returns /login while session exists. */
+export function homeForRole(
+  role?: UserRole | null,
+  accountType?: AccountType | null
+): AppHome {
+  return homeForAccount(role, accountType) ?? "/passenger";
 }

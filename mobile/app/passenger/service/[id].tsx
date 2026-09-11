@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/Button";
+import { StandardRideDetails } from "@/components/passenger/StandardRideDetails";
 import { colors, radii, typography } from "@/constants/theme";
+import { STANDARD_RIDE_CONTENT } from "@/lib/standard-ride-content";
 import {
   isRideOptionId,
   rideOptionById,
@@ -10,25 +12,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const ACCENT: Record<
-  RideOptionId,
-  { iconBg: string; iconFg: string }
-> = {
+const ACCENT: Record<RideOptionId, { iconBg: string; iconFg: string }> = {
   standard: { iconBg: colors.surfaceAlt, iconFg: colors.dark },
   express: { iconBg: colors.primarySoft, iconFg: colors.primary },
   comfort: { iconBg: "#F4F0E6", iconFg: "#8B7355" },
 };
 
 /**
- * Service details — explains Standard / Express / Comfort, then continues
- * into the existing where-to → plan booking flow with serviceId set.
- * Does NOT show maps, driver GPS, or booking UI.
+ * Service details → existing where-to → plan booking with serviceId.
+ * Standard uses the full details layout; Express/Comfort stay compact for now.
+ * No live map / driver GPS on this screen.
  */
 export default function ServiceDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const serviceId = isRideOptionId(id) ? id : "standard";
   const option = rideOptionById(serviceId);
   const accent = ACCENT[serviceId];
+  const isStandard = serviceId === "standard";
 
   const startBooking = () => {
     router.push({
@@ -54,38 +54,49 @@ export default function ServiceDetailsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[
+          styles.body,
+          isStandard && styles.bodyStandard,
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.heroIcon, { backgroundColor: accent.iconBg }]}>
-          <Ionicons name={option.icon} size={32} color={accent.iconFg} />
-        </View>
-
-        <Text style={styles.title}>{option.detailsHeadline}</Text>
-        <Text style={styles.intro}>{option.detailsIntro}</Text>
-
-        <Text style={styles.section}>What you get</Text>
-        <View style={styles.benefits}>
-          {option.benefits.map((item) => (
-            <View key={item} style={styles.benefitRow}>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color={colors.primary}
-              />
-              <Text style={styles.benefitText}>{item}</Text>
+        {isStandard ? (
+          <StandardRideDetails />
+        ) : (
+          <>
+            <View style={[styles.heroIcon, { backgroundColor: accent.iconBg }]}>
+              <Ionicons name={option.icon} size={32} color={accent.iconFg} />
             </View>
-          ))}
-        </View>
-
-        {option.availabilityNote ? (
-          <Text style={styles.note}>{option.availabilityNote}</Text>
-        ) : null}
+            <Text style={styles.title}>{option.detailsHeadline}</Text>
+            <Text style={styles.intro}>{option.detailsIntro}</Text>
+            <Text style={styles.section}>What you get</Text>
+            <View style={styles.benefits}>
+              {option.benefits.map((item) => (
+                <View key={item} style={styles.benefitRow}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.benefitText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+            {option.availabilityNote ? (
+              <Text style={styles.note}>{option.availabilityNote}</Text>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
         <Button
-          label="Choose pickup & destination"
+          label={
+            isStandard
+              ? STANDARD_RIDE_CONTENT.ctaLabel
+              : "Choose pickup & destination"
+          }
           onPress={startBooking}
           size="lg"
         />
@@ -121,6 +132,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 24,
+  },
+  bodyStandard: {
+    paddingBottom: 32,
   },
   heroIcon: {
     width: 72,
@@ -171,9 +185,10 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 10,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.white,
   },
 });

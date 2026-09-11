@@ -62,6 +62,10 @@ export function HomeLocationMap({
 
   useEffect(() => {
     if (!coords) return;
+    console.log("[GR-GPS] Map:coords→marker", {
+      lat: Number(coords.lat.toFixed(6)),
+      lng: Number(coords.lng.toFixed(6)),
+    });
     baseRef.current = coords;
     viewRef.current = coords;
     setViewCenter(coords);

@@ -82,20 +82,28 @@ export default function PassengerHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       let stopped = false;
-      let stopWatch: (() => void) | undefined;
+      const stopRef = { current: undefined as undefined | (() => void) };
+
+      console.log("[GR-GPS] Home:focus — starting watch");
+      setLocating(true);
+      setLocMessage(null);
 
       (async () => {
-        setLocating(true);
-        setLocMessage(null);
         const watch = await startDeviceLocationWatch({
           onUpdate: (place) => {
             if (stopped) return;
+            console.log("[GR-GPS] Home:setPickup", {
+              lat: Number(place.lat.toFixed(6)),
+              lng: Number(place.lng.toFixed(6)),
+              title: place.title,
+            });
             setPickup(place);
             setLocating(false);
             setLocMessage(null);
           },
           onError: (message) => {
             if (stopped) return;
+            console.log("[GR-GPS] Home:onError", message);
             setLocating(false);
             setLocMessage(message);
           },
@@ -105,16 +113,19 @@ export default function PassengerHomeScreen() {
           return;
         }
         if ("error" in watch) {
+          console.log("[GR-GPS] Home:watch-error", watch.error);
           setLocating(false);
           setLocMessage(watch.error);
           return;
         }
-        stopWatch = watch.stop;
+        stopRef.current = watch.stop;
+        console.log("[GR-GPS] Home:watch-armed");
       })();
 
       return () => {
+        console.log("[GR-GPS] Home:blur — stopping watch");
         stopped = true;
-        stopWatch?.();
+        stopRef.current?.();
       };
     }, [])
   );

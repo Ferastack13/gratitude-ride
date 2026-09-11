@@ -1,38 +1,29 @@
 import { Button } from "@/components/ui/Button";
+import { ComfortRideDetails } from "@/components/passenger/ComfortRideDetails";
 import { ExpressRideDetails } from "@/components/passenger/ExpressRideDetails";
 import { StandardRideDetails } from "@/components/passenger/StandardRideDetails";
-import { colors, radii, typography } from "@/constants/theme";
+import { colors } from "@/constants/theme";
+import { COMFORT_RIDE_CONTENT } from "@/lib/comfort-ride-content";
 import { EXPRESS_RIDE_CONTENT } from "@/lib/express-ride-content";
 import { STANDARD_RIDE_CONTENT } from "@/lib/standard-ride-content";
 import {
   isRideOptionId,
   rideOptionById,
-  type RideOptionId,
 } from "@/lib/ride-options";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const ACCENT: Record<RideOptionId, { iconBg: string; iconFg: string }> = {
-  standard: { iconBg: colors.surfaceAlt, iconFg: colors.dark },
-  express: { iconBg: colors.primarySoft, iconFg: colors.primary },
-  comfort: { iconBg: "#F4F0E6", iconFg: "#8B7355" },
-};
-
 /**
  * Service details → existing where-to → plan booking with serviceId.
- * Standard & Express use full details; Comfort stays compact for now.
+ * Standard, Express, and Comfort each have dedicated rich details.
  * No live map / driver GPS on this screen.
  */
 export default function ServiceDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const serviceId = isRideOptionId(id) ? id : "standard";
   const option = rideOptionById(serviceId);
-  const accent = ACCENT[serviceId];
-  const isStandard = serviceId === "standard";
-  const isExpress = serviceId === "express";
-  const rich = isStandard || isExpress;
 
   const startBooking = () => {
     router.push({
@@ -44,11 +35,12 @@ export default function ServiceDetailsScreen() {
     } as never);
   };
 
-  const ctaLabel = isStandard
-    ? STANDARD_RIDE_CONTENT.ctaLabel
-    : isExpress
-      ? EXPRESS_RIDE_CONTENT.ctaLabel
-      : "Choose pickup & destination";
+  const ctaLabel =
+    serviceId === "standard"
+      ? STANDARD_RIDE_CONTENT.ctaLabel
+      : serviceId === "express"
+        ? EXPRESS_RIDE_CONTENT.ctaLabel
+        : COMFORT_RIDE_CONTENT.ctaLabel;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -64,38 +56,16 @@ export default function ServiceDetailsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.body, rich && styles.bodyRich]}
+        contentContainerStyle={styles.body}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {isStandard ? (
+        {serviceId === "standard" ? (
           <StandardRideDetails />
-        ) : isExpress ? (
+        ) : serviceId === "express" ? (
           <ExpressRideDetails />
         ) : (
-          <>
-            <View style={[styles.heroIcon, { backgroundColor: accent.iconBg }]}>
-              <Ionicons name={option.icon} size={32} color={accent.iconFg} />
-            </View>
-            <Text style={styles.title}>{option.detailsHeadline}</Text>
-            <Text style={styles.intro}>{option.detailsIntro}</Text>
-            <Text style={styles.section}>What you get</Text>
-            <View style={styles.benefits}>
-              {option.benefits.map((item) => (
-                <View key={item} style={styles.benefitRow}>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color={colors.primary}
-                  />
-                  <Text style={styles.benefitText}>{item}</Text>
-                </View>
-              ))}
-            </View>
-            {option.availabilityNote ? (
-              <Text style={styles.note}>{option.availabilityNote}</Text>
-            ) : null}
-          </>
+          <ComfortRideDetails />
         )}
       </ScrollView>
 
@@ -132,57 +102,7 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 24,
-  },
-  bodyRich: {
     paddingBottom: 32,
-  },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: colors.dark,
-    letterSpacing: -0.4,
-    marginBottom: 10,
-  },
-  intro: {
-    ...typography.supporting,
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 28,
-  },
-  section: {
-    ...typography.section,
-    marginBottom: 14,
-  },
-  benefits: { gap: 14 },
-  benefitRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  benefitText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "400",
-    color: colors.dark,
-    lineHeight: 22,
-  },
-  note: {
-    marginTop: 24,
-    ...typography.supporting,
-    fontSize: 13,
-    lineHeight: 19,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radii.md,
-    padding: 14,
   },
   footer: {
     paddingHorizontal: 20,

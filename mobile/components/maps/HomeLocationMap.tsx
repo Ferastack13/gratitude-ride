@@ -24,6 +24,10 @@ type Props = {
   errorMessage?: string | null;
   onRequestLocation?: () => void;
   height?: number;
+  /** Flush edges for map-first Home (presentation only). */
+  flush?: boolean;
+  /** Move zoom/recenter to top-right so a bottom sheet does not cover them. */
+  controlsTop?: boolean;
 };
 
 const MIN_ZOOM = 12;
@@ -40,6 +44,8 @@ export function HomeLocationMap({
   errorMessage,
   onRequestLocation,
   height = 200,
+  flush = false,
+  controlsTop = false,
 }: Props) {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [viewCenter, setViewCenter] = useState<Coords | null>(coords);
@@ -103,9 +109,15 @@ export function HomeLocationMap({
     []
   );
 
+  const shellStyle = [
+    styles.shell,
+    flush && styles.shellFlush,
+    { height },
+  ];
+
   if (loading && !coords) {
     return (
-      <View style={[styles.shell, { height }]}>
+      <View style={shellStyle}>
         <View style={styles.state}>
           <ActivityIndicator color={colors.primary} />
           <Text style={styles.stateTitle}>Finding your location…</Text>
@@ -119,7 +131,7 @@ export function HomeLocationMap({
 
   if (!coords || !viewCenter) {
     return (
-      <View style={[styles.shell, { height }]}>
+      <View style={shellStyle}>
         <View style={styles.state}>
           <Ionicons name="location-outline" size={28} color={colors.muted} />
           <Text style={styles.stateTitle}>Location unavailable</Text>
@@ -144,7 +156,7 @@ export function HomeLocationMap({
   }
 
   return (
-    <View style={[styles.shell, { height }]} collapsable={false}>
+    <View style={shellStyle} collapsable={false}>
       <View style={styles.mapTouch} {...panResponder.panHandlers}>
         <OsmRasterMap
           center={viewCenter}
@@ -158,16 +170,24 @@ export function HomeLocationMap({
         />
       </View>
 
-      <View style={styles.badge} pointerEvents="none">
+      <View
+        style={[styles.badge, flush && styles.badgeFlush]}
+        pointerEvents="none"
+      >
         <View style={styles.dot} />
         <Text style={styles.badgeText}>You are here</Text>
       </View>
 
-      <Text style={styles.attrib} pointerEvents="none">
+      <Text
+        style={[styles.attrib, flush && styles.attribFlush]}
+        pointerEvents="none"
+      >
         © OSM · CARTO
       </Text>
 
-      <View style={styles.controls}>
+      <View
+        style={[styles.controls, controlsTop && styles.controlsTop]}
+      >
         <Pressable
           style={({ pressed }) => [styles.ctrlBtn, pressed && { opacity: 0.8 }]}
           onPress={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1))}
@@ -204,6 +224,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#e8eef2",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+  },
+  shellFlush: {
+    borderRadius: 0,
+    borderWidth: 0,
   },
   mapTouch: { flex: 1 },
   state: {
@@ -248,6 +272,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
+  badgeFlush: {
+    bottom: 28,
+  },
   dot: {
     width: 8,
     height: 8,
@@ -270,11 +297,18 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  attribFlush: {
+    top: 72,
+  },
   controls: {
     position: "absolute",
     right: 12,
     bottom: 14,
     gap: 8,
+  },
+  controlsTop: {
+    top: 72,
+    bottom: undefined,
   },
   ctrlBtn: {
     width: 40,

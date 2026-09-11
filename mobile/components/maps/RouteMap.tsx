@@ -1,9 +1,9 @@
+import { OsmRasterMap } from "@/components/maps/OsmRasterMap";
 import { colors, radii, shadows } from "@/constants/theme";
 import type { LatLng } from "@/lib/routing";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo, useState } from "react";
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -67,38 +67,9 @@ function fitDelta(
 }
 
 /**
- * Street map via OSM static tiles + optional route path.
- * Expo Go safe: no Google Maps SDK / WebView HTML.
- * Represents selected pickup, dropoff, and route geometry.
+ * Street map via OSM/Carto raster tiles + markers.
+ * Expo Go safe. (staticmap.openstreetmap.de was discontinued — NXDOMAIN.)
  */
-function buildMapUri(
-  center: { lat: number; lng: number },
-  markers: { lat: number; lng: number; color: string }[],
-  zoom: number,
-  path?: LatLng[]
-) {
-  const markerParams = markers
-    .slice(0, 3)
-    .map((m) => `${m.lat},${m.lng},${m.color}`)
-    .join("|");
-
-  let pathParam = "";
-  if (path && path.length >= 2) {
-    const pts = path.map((p) => `${p.lat},${p.lng}`).join("|");
-    pathParam = `&path=color:0x1D61E7|weight:5|${pts}`;
-  }
-
-  return (
-    "https://staticmap.openstreetmap.de/staticmap.php?" +
-    `center=${center.lat},${center.lng}` +
-    `&zoom=${zoom}` +
-    `&size=720x1100` +
-    `&maptype=mapnik` +
-    (markerParams ? `&markers=${markerParams}` : "") +
-    pathParam
-  );
-}
-
 export function RouteMap({
   center,
   pickup,
@@ -151,24 +122,22 @@ export function RouteMap({
   const baseZoom = zoomFromDelta(autoDelta);
   const zoom = Math.min(16, Math.max(11, baseZoom + zoomBoost));
 
-  const uri = useMemo(() => {
-    const markers: { lat: number; lng: number; color: string }[] = [];
+  const markers = useMemo(() => {
+    const list: { lat: number; lng: number; color: string }[] = [];
     if (pickup) {
-      markers.push({ lat: pickup.lat, lng: pickup.lng, color: "green" });
+      list.push({ lat: pickup.lat, lng: pickup.lng, color: "#16A34A" });
     }
     if (dropoff) {
-      markers.push({ lat: dropoff.lat, lng: dropoff.lng, color: "orange" });
+      list.push({ lat: dropoff.lat, lng: dropoff.lng, color: "#F59E0B" });
     }
     if (driver) {
-      markers.push({ lat: driver.lat, lng: driver.lng, color: "blue" });
+      list.push({ lat: driver.lat, lng: driver.lng, color: "#1D61E7" });
     }
     if (!pickup && !dropoff && !driver) {
-      markers.push({ lat: center.lat, lng: center.lng, color: "lightblue1" });
+      list.push({ lat: center.lat, lng: center.lng, color: "#4B84F0" });
     }
-    return buildMapUri(mapCenter, markers, zoom, routeCoords);
+    return list;
   }, [
-    mapCenter.lat,
-    mapCenter.lng,
     center.lat,
     center.lng,
     pickup?.lat,
@@ -177,8 +146,6 @@ export function RouteMap({
     dropoff?.lng,
     driver?.lat,
     driver?.lng,
-    zoom,
-    routeCoords,
   ]);
 
   return (
@@ -190,12 +157,12 @@ export function RouteMap({
       ]}
       collapsable={false}
     >
-      <Image
-        key={uri}
-        source={{ uri }}
-        style={styles.map}
-        resizeMode="cover"
-        accessibilityLabel="Route map"
+      <OsmRasterMap
+        center={mapCenter}
+        zoom={zoom}
+        height={fullBleed ? height : height}
+        markers={markers}
+        style={fullBleed ? styles.fullRaster : undefined}
       />
       <View style={styles.badge} pointerEvents="none">
         <View style={styles.dot} />
@@ -252,15 +219,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#dbe7e0",
   },
-  map: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#dbe7e0",
+  fullRaster: {
+    ...StyleSheet.absoluteFillObject,
+    height: undefined as unknown as number,
   },
   badge: {
     position: "absolute",

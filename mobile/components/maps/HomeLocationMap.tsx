@@ -1,9 +1,14 @@
+import { OsmRasterMap } from "@/components/maps/OsmRasterMap";
 import { colors, radii, shadows } from "@/constants/theme";
+import {
+  latToWorldY,
+  lngToWorldX,
+  worldToLatLng,
+} from "@/lib/osm-tiles";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -25,26 +30,9 @@ const MIN_ZOOM = 12;
 const MAX_ZOOM = 17;
 const DEFAULT_ZOOM = 15;
 
-function metersPerPixel(lat: number, zoom: number) {
-  return (
-    (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom)
-  );
-}
-
-function buildUri(center: Coords, zoom: number) {
-  return (
-    "https://staticmap.openstreetmap.de/staticmap.php?" +
-    `center=${center.lat},${center.lng}` +
-    `&zoom=${zoom}` +
-    `&size=720x480` +
-    `&maptype=mapnik` +
-    `&markers=${center.lat},${center.lng},blue`
-  );
-}
-
 /**
- * Home “You are here” map — real GPS center, zoom +/−, pan, recenter.
- * Expo Go safe (OSM static tiles). Decorative cars must NOT use this component.
+ * Home “You are here” map — real GPS + OSM/Carto raster tiles.
+ * Root cause of blank map: staticmap.openstreetmap.de is discontinued (NXDOMAIN).
  */
 export function HomeLocationMap({
   coords,
@@ -60,6 +48,7 @@ export function HomeLocationMap({
   const viewRef = useRef<Coords | null>(coords);
   const zoomRef = useRef(DEFAULT_ZOOM);
   const panStart = useRef<Coords | null>(null);
+  const sizeRef = useRef({ w: 0, h: height });
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -97,26 +86,19 @@ export function HomeLocationMap({
         },
         onPanResponderRelease: (_, g) => {
           const start = panStart.current;
-          if (!start) {
+          if (!start || sizeRef.current.w <= 0) {
             setDrag({ x: 0, y: 0 });
             return;
           }
-          const mpp = metersPerPixel(start.lat, zoomRef.current);
-          const dLat = (g.dy * mpp) / 111320;
-          const dLng =
-            (g.dx * mpp) /
-            (111320 * Math.cos((start.lat * Math.PI) / 180) || 1);
-          const next = {
-            lat: start.lat + dLat,
-            lng: start.lng - dLng,
-          };
+          const z = zoomRef.current;
+          const cx = lngToWorldX(start.lng, z) - g.dx;
+          const cy = latToWorldY(start.lat, z) - g.dy;
+          const next = worldToLatLng(cx, cy, z);
           viewRef.current = next;
           setViewCenter(next);
           setDrag({ x: 0, y: 0 });
         },
-        onPanResponderTerminate: () => {
-          setDrag({ x: 0, y: 0 });
-        },
+        onPanResponderTerminate: () => setDrag({ x: 0, y: 0 }),
       }),
     []
   );
@@ -161,20 +143,18 @@ export function HomeLocationMap({
     );
   }
 
-  const uri = buildUri(viewCenter, zoom);
-
   return (
-    <View style={[styles.shell, { height }]}>
+    <View style={[styles.shell, { height }]} collapsable={false}>
       <View style={styles.mapTouch} {...panResponder.panHandlers}>
-        <Image
-          key={uri}
-          source={{ uri }}
-          style={[
-            styles.map,
-            { transform: [{ translateX: drag.x }, { translateY: drag.y }] },
-          ]}
-          resizeMode="cover"
-          accessibilityLabel="Your location map"
+        <OsmRasterMap
+          center={viewCenter}
+          zoom={zoom}
+          height={height}
+          dragOffset={drag}
+          markers={[{ lat: coords.lat, lng: coords.lng, color: colors.primary }]}
+          onLayoutSize={(s) => {
+            sizeRef.current = s;
+          }}
         />
       </View>
 
@@ -182,6 +162,10 @@ export function HomeLocationMap({
         <View style={styles.dot} />
         <Text style={styles.badgeText}>You are here</Text>
       </View>
+
+      <Text style={styles.attrib} pointerEvents="none">
+        © OSM · CARTO
+      </Text>
 
       <View style={styles.controls}>
         <Pressable
@@ -217,16 +201,11 @@ const styles = StyleSheet.create({
   shell: {
     borderRadius: radii.lg,
     overflow: "hidden",
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: "#e8eef2",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   mapTouch: { flex: 1 },
-  map: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#dbe7e0",
-  },
   state: {
     flex: 1,
     alignItems: "center",
@@ -279,6 +258,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: colors.dark,
+  },
+  attrib: {
+    position: "absolute",
+    left: 12,
+    top: 10,
+    fontSize: 9,
+    color: colors.muted,
+    backgroundColor: "rgba(255,255,255,0.75)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   controls: {
     position: "absolute",

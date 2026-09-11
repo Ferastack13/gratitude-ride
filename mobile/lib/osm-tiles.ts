@@ -5,13 +5,20 @@
 
 export const TILE_SIZE = 256;
 
-/** Carto Voyager — OSM data, reliable HTTPS PNGs (no API key). */
+/** Carto Basemaps key from mobile/.env — never hardcode in source. */
+function cartoApiKey(): string {
+  return (process.env.EXPO_PUBLIC_CARTO_API_KEY ?? "").trim();
+}
+
+/** Carto Voyager raster tiles (requires EXPO_PUBLIC_CARTO_API_KEY). */
 export function tileUrl(z: number, x: number, y: number): string {
   const n = 2 ** z;
   const xx = ((x % n) + n) % n;
   const yy = Math.max(0, Math.min(n - 1, Math.floor(y)));
   const subdomain = ["a", "b", "c", "d"][Math.abs(xx + yy) % 4];
-  return `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${xx}/${yy}.png`;
+  const base = `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${xx}/${yy}.png`;
+  const key = cartoApiKey();
+  return key ? `${base}?key=${encodeURIComponent(key)}` : base;
 }
 
 export function lngToWorldX(lng: number, zoom: number): number {

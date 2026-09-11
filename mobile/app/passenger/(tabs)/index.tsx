@@ -11,7 +11,6 @@ import {
 } from "@/lib/format";
 import { placeParams, resolveCurrentLocation, startDeviceLocationWatch } from "@/lib/location";
 import type { LivePlace } from "@/lib/places";
-import { RIDE_OPTIONS } from "@/lib/ride-options";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
@@ -33,14 +32,11 @@ function greetingForHour(hour: number) {
   return "Good evening";
 }
 
-const SUGGEST_ACCENT: Record<
-  string,
-  { bg: string; fg: string }
-> = {
-  standard: { bg: colors.surfaceAlt, fg: colors.dark },
-  express: { bg: colors.primarySoft, fg: colors.primary },
-  comfort: { bg: "#F4F0E6", fg: "#8B7355" },
-};
+const QUICK_ACCESS = [
+  { id: "home", label: "Home", emoji: "🏠" },
+  { id: "work", label: "Work", emoji: "💼" },
+  { id: "add", label: "Add Place", emoji: "＋" },
+] as const;
 
 export default function PassengerHomeScreen() {
   const { profile } = useAuth();
@@ -318,46 +314,27 @@ export default function PassengerHomeScreen() {
             </Pressable>
           ) : null}
 
-          <View style={styles.suggestHead}>
-            <Text style={styles.section}>Suggestions</Text>
-            <Pressable
-              onPress={() => router.push("/passenger/services" as never)}
-              hitSlop={8}
-            >
-              <Text style={styles.seeAll}>See all</Text>
-            </Pressable>
+          <Text style={[styles.section, { marginTop: 8, marginBottom: 10 }]}>
+            Quick Access
+          </Text>
+          <View style={styles.quickRow}>
+            {QUICK_ACCESS.map((item) => (
+              <Pressable
+                key={item.id}
+                style={({ pressed }) => [
+                  styles.quickChip,
+                  pressed && { opacity: 0.88 },
+                ]}
+                // UI placeholder only — saved places not wired yet
+                onPress={() => undefined}
+              >
+                <View style={styles.quickIcon}>
+                  <Text style={styles.quickEmoji}>{item.emoji}</Text>
+                </View>
+                <Text style={styles.quickLabel}>{item.label}</Text>
+              </Pressable>
+            ))}
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.suggestRow}
-          >
-            {RIDE_OPTIONS.map((opt) => {
-              const accent = SUGGEST_ACCENT[opt.id] ?? SUGGEST_ACCENT.standard;
-              return (
-                <Pressable
-                  key={opt.id}
-                  style={({ pressed }) => [
-                    styles.suggestChip,
-                    pressed && { opacity: 0.88 },
-                  ]}
-                  onPress={() =>
-                    router.push(`/passenger/service/${opt.id}` as never)
-                  }
-                >
-                  <View
-                    style={[styles.suggestIcon, { backgroundColor: accent.bg }]}
-                  >
-                    <Ionicons name={opt.icon} size={20} color={accent.fg} />
-                  </View>
-                  <Text style={styles.suggestTitle}>{opt.title}</Text>
-                  <Text style={styles.suggestSub} numberOfLines={1}>
-                    {opt.description}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
 
           <Text style={[styles.section, { marginTop: 18 }]}>Recent</Text>
           {recent.length === 0 ? (
@@ -581,53 +558,42 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     fontSize: 13,
   },
-  suggestHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-    marginBottom: 10,
-  },
   section: {
     ...typography.section,
     marginBottom: 0,
   },
-  seeAll: {
-    color: colors.primary,
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  suggestRow: {
+  quickRow: {
+    flexDirection: "row",
     gap: 10,
-    paddingRight: 8,
   },
-  suggestChip: {
-    width: 128,
-    padding: 12,
+  quickChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     borderRadius: radii.md,
     backgroundColor: colors.white,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  suggestIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+  quickIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  suggestTitle: {
-    fontSize: 14,
+  quickEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  quickLabel: {
+    fontSize: 13,
     fontWeight: "600",
     color: colors.dark,
-    marginBottom: 2,
-  },
-  suggestSub: {
-    fontSize: 11,
-    fontWeight: "400",
-    color: colors.muted,
-    lineHeight: 15,
+    textAlign: "center",
   },
   empty: {
     ...typography.supporting,

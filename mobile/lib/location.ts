@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import { distanceKm } from "@/lib/geo";
 import { reverseLivePlace, type LivePlace } from "@/lib/places";
+import { Platform } from "react-native";
 
 export type LocationPermission = "granted" | "denied" | "undetermined";
 
@@ -18,14 +19,13 @@ export type DeviceLocationResult =
       message: string;
     };
 
-/** Min movement before reverse-geocode (Nominatim rate limits). */
-const REVERSE_MIN_DISTANCE_M = 25;
-/** Min time between reverse-geocode calls. */
-const REVERSE_MIN_INTERVAL_MS = 10_000;
+const REVERSE_MIN_DISTANCE_M = 20;
+const REVERSE_MIN_INTERVAL_MS = 8_000;
 const REVERSE_TIMEOUT_MS = 6_000;
-/** GPS watch cadence — keep low so small walks still fire. */
-const WATCH_TIME_MS = 2_000;
-const WATCH_DISTANCE_M = 5;
+/** Polling fallback — Expo watch alone is unreliable on some Android phones. */
+const POLL_INTERVAL_MS = 3_000;
+const WATCH_TIME_MS = 1_500;
+const WATCH_DISTANCE_M = 3;
 
 const LOG = (...args: unknown[]) => {
   console.log("[GR-GPS]", ...args);
@@ -78,6 +78,22 @@ async function ensureForegroundPermission(): Promise<LocationPermission> {
   return status === "denied" ? "denied" : "undetermined";
 }
 
+async function readGps(label: string) {
+  const pos = await Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.BestForNavigation,
+    mayShowUserSettingsDialog: true,
+  });
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  LOG(label, {
+    lat: Number(lat.toFixed(6)),
+    lng: Number(lng.toFixed(6)),
+    accuracy: pos.coords.accuracy,
+    mocked: (pos as { mocked?: boolean }).mocked,
+  });
+  return { lat, lng, accuracy: pos.coords.accuracy ?? null };
+}
+
 /** Request permission and resolve the device GPS into a readable place. Never invents a city. */
 export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
   try {
@@ -93,19 +109,16 @@ export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
       };
     }
 
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    const coords = {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-    };
-    LOG("resolveCurrentLocation", coords);
-
+    const coords = await readGps("resolveCurrentLocation");
     const reversed = await reverseWithTimeout(coords.lat, coords.lng);
     const place = placeFromCoords(coords.lat, coords.lng, reversed);
 
-    return { ok: true, permission: "granted", coords, place };
+    return {
+      ok: true,
+      permission: "granted",
+      coords: { lat: coords.lat, lng: coords.lng },
+      place,
+    };
   } catch (e) {
     LOG("resolveCurrentLocation:error", e);
     return {
@@ -119,21 +132,18 @@ export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
 }
 
 export type DeviceLocationWatchHandlers = {
-  /** Called on every meaningful GPS update (coords always fresh). */
   onUpdate: (place: LivePlace) => void;
   onError?: (message: string) => void;
 };
 
 /**
- * Continuously watch device GPS while Home (or caller) is active.
- *
- * IMPORTANT: watchPositionAsync starts immediately. Reverse-geocode must NEVER
- * block starting the watch (Nominatim hangs were preventing live updates).
+ * Live device GPS for Passenger Home.
+ * Uses watchPositionAsync AND an interval poll — watch alone fails on many Android/Expo Go devices.
  */
 export async function startDeviceLocationWatch(
   handlers: DeviceLocationWatchHandlers
 ): Promise<{ stop: () => void } | { error: string }> {
-  LOG("watch:start");
+  LOG("watch:start", { platform: Platform.OS });
   const permission = await ensureForegroundPermission();
   if (permission !== "granted") {
     LOG("watch:permission-denied", permission);
@@ -152,8 +162,18 @@ export async function startDeviceLocationWatch(
     };
   }
 
+  if (Platform.OS === "android") {
+    try {
+      await Location.enableNetworkProviderAsync();
+      LOG("watch:networkProvider:enabled");
+    } catch (e) {
+      LOG("watch:networkProvider:skip", e);
+    }
+  }
+
   let stopped = false;
   let reverseInFlight = false;
+  let lastEmitted: { lat: number; lng: number } | null = null;
   let lastReverse: {
     lat: number;
     lng: number;
@@ -163,14 +183,17 @@ export async function startDeviceLocationWatch(
 
   const emitCoords = (lat: number, lng: number, label: string) => {
     if (stopped) return;
-    const place = placeFromCoords(
-      lat,
-      lng,
-      lastReverse
-        ? { ...lastReverse.place, lat, lng }
-        : null
-    );
-    // Keep last known street label while moving; coords always fresh.
+
+    // Ignore tiny GPS jitter spam (< 2m) but still allow first fix.
+    if (lastEmitted) {
+      const movedM = distanceKm(lastEmitted, { lat, lng }) * 1000;
+      if (movedM < 2 && label.startsWith("poll")) {
+        return;
+      }
+    }
+    lastEmitted = { lat, lng };
+
+    const place = placeFromCoords(lat, lng, null);
     if (lastReverse) {
       place.title = lastReverse.place.title;
       place.address = lastReverse.place.address;
@@ -178,7 +201,9 @@ export async function startDeviceLocationWatch(
       place.city = lastReverse.place.city;
       place.state = lastReverse.place.state;
     }
-    LOG(label, {
+
+    LOG("emit", {
+      label,
       lat: Number(lat.toFixed(6)),
       lng: Number(lng.toFixed(6)),
       title: place.title,
@@ -201,7 +226,10 @@ export async function startDeviceLocationWatch(
     if (!shouldReverse) return;
 
     reverseInFlight = true;
-    LOG("reverse:start", { lat, lng });
+    LOG("reverse:start", {
+      lat: Number(lat.toFixed(6)),
+      lng: Number(lng.toFixed(6)),
+    });
     const reversed = await reverseWithTimeout(lat, lng);
     reverseInFlight = false;
     if (stopped) return;
@@ -210,73 +238,67 @@ export async function startDeviceLocationWatch(
     lastReverse = { lat, lng, at: Date.now(), place };
     LOG("reverse:done", {
       title: place.title,
-      address: place.address?.slice(0, 80),
+      address: place.address?.slice(0, 90),
       usedNominatim: Boolean(reversed),
     });
     handlers.onUpdate(place);
   };
 
-  // 1) Start the watch FIRST — never block on reverse-geocode.
-  let sub: Location.LocationSubscription;
+  const handleFix = (lat: number, lng: number, label: string) => {
+    emitCoords(lat, lng, label);
+    void maybeReverse(lat, lng, label === "seed");
+  };
+
+  // A) Native watch (best effort)
+  let sub: Location.LocationSubscription | null = null;
   try {
     sub = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: WATCH_TIME_MS,
         distanceInterval: WATCH_DISTANCE_M,
         mayShowUserSettingsDialog: true,
       },
       (loc) => {
-        const lat = loc.coords.latitude;
-        const lng = loc.coords.longitude;
-        LOG("watchPositionAsync:tick", {
-          lat: Number(lat.toFixed(6)),
-          lng: Number(lng.toFixed(6)),
-          accuracy: loc.coords.accuracy,
-        });
-        emitCoords(lat, lng, "state:coords");
-        void maybeReverse(lat, lng, false);
+        handleFix(
+          loc.coords.latitude,
+          loc.coords.longitude,
+          "watchPositionAsync"
+        );
       }
     );
     LOG("watchPositionAsync:subscribed");
   } catch (e) {
-    LOG("watchPositionAsync:failed", e);
-    return {
-      error:
-        "Couldn’t start live location. Search for your pickup location instead.",
-    };
+    LOG("watchPositionAsync:failed — will rely on polling", e);
   }
 
-  // 2) One-shot seed (non-blocking for the subscription above).
-  void (async () => {
+  // B) Polling fallback (critical on Android / Expo Go)
+  const poll = async (label: string) => {
+    if (stopped) return;
     try {
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      if (stopped) return;
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      LOG("getCurrentPositionAsync", {
-        lat: Number(lat.toFixed(6)),
-        lng: Number(lng.toFixed(6)),
-      });
-      emitCoords(lat, lng, "state:seed");
-      await maybeReverse(lat, lng, true);
+      const gps = await readGps(label);
+      handleFix(gps.lat, gps.lng, label);
     } catch (e) {
-      LOG("getCurrentPositionAsync:failed", e);
-      if (!stopped) {
+      LOG(`${label}:failed`, e);
+      if (label === "seed") {
         handlers.onError?.(
-          "Couldn’t read your GPS. Search for your pickup location instead."
+          "Couldn’t read your GPS. Turn on precise location and try again."
         );
       }
     }
-  })();
+  };
+
+  void poll("seed");
+  const timer = setInterval(() => {
+    void poll("poll");
+  }, POLL_INTERVAL_MS);
 
   return {
     stop: () => {
       LOG("watch:stop");
       stopped = true;
-      sub.remove();
+      clearInterval(timer);
+      sub?.remove();
     },
   };
 }

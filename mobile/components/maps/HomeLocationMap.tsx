@@ -30,9 +30,9 @@ type Props = {
   controlsTop?: boolean;
 };
 
-const MIN_ZOOM = 12;
-const MAX_ZOOM = 17;
-const DEFAULT_ZOOM = 15;
+const MIN_ZOOM = 13;
+const MAX_ZOOM = 18;
+const DEFAULT_ZOOM = 16;
 
 /**
  * Home “You are here” map — real GPS + OSM/Carto raster tiles.

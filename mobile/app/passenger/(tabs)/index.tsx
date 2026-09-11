@@ -274,6 +274,11 @@ export default function PassengerHomeScreen() {
                     : "Set pickup location"}
                 </Text>
               )}
+              {pickup ? (
+                <Text style={styles.pickupCoords}>
+                  {pickup.lat.toFixed(5)}, {pickup.lng.toFixed(5)} · live GPS
+                </Text>
+              ) : null}
             </View>
             <Text style={styles.edit}>{pickup ? "Edit" : "Set"}</Text>
           </Pressable>
@@ -520,6 +525,13 @@ const styles = StyleSheet.create({
   },
   pickupLabel: { ...typography.label, marginBottom: 2 },
   pickupValue: { ...typography.bodyStrong, fontSize: 14 },
+  pickupCoords: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "500",
+    color: colors.mutedLight,
+    fontVariant: ["tabular-nums"],
+  },
   pickupLoading: { flexDirection: "row", alignItems: "center", gap: 8 },
   edit: {
     color: colors.primary,

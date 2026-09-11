@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/Badge";
 import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { colors, radii, shadows, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
-import { getRecentPlaces } from "@/lib/client-prefs";
+import { getRecentPlaces, getSavedPlaces, type SavedPlaces } from "@/lib/client-prefs";
 import {
   formatCurrency,
   formatStatus,
@@ -17,6 +17,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,10 +34,10 @@ function greetingForHour(hour: number) {
 }
 
 const QUICK_ACCESS = [
-  { id: "home", label: "Home", emoji: "🏠" },
-  { id: "work", label: "Work", emoji: "💼" },
-  { id: "add", label: "Add Place", emoji: "＋" },
-] as const;
+  { id: "home" as const, label: "Home", emoji: "🏠" },
+  { id: "work" as const, label: "Work", emoji: "💼" },
+  { id: "add" as const, label: "Add Place", emoji: "＋" },
+];
 
 export default function PassengerHomeScreen() {
   const { profile } = useAuth();
@@ -46,6 +47,7 @@ export default function PassengerHomeScreen() {
   const [locating, setLocating] = useState(true);
   const [locMessage, setLocMessage] = useState<string | null>(null);
   const [recent, setRecent] = useState<LivePlace[]>([]);
+  const [saved, setSaved] = useState<SavedPlaces>({ home: null, work: null });
   const [active, setActive] = useState<{
     tracking_id: string;
     status: string;
@@ -73,6 +75,13 @@ export default function PassengerHomeScreen() {
   useEffect(() => {
     getRecentPlaces().then(setRecent).catch(() => undefined);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      getSavedPlaces().then(setSaved).catch(() => undefined);
+      getRecentPlaces().then(setRecent).catch(() => undefined);
+    }, [])
+  );
 
   // Live device GPS while Home is focused — not a one-shot on mount.
   useFocusEffect(
@@ -174,6 +183,48 @@ export default function PassengerHomeScreen() {
         serviceId: "standard",
       },
     } as never);
+  };
+
+  const openSavePlace = (kind: "home" | "work") => {
+    router.push({
+      pathname: "/passenger/where-to",
+      params: {
+        ...(pickup ? placeParams(pickup, "pickup") : {}),
+        focus: "dropoff",
+        saveAs: kind,
+      },
+    } as never);
+  };
+
+  const onQuickAccess = (id: "home" | "work" | "add") => {
+    if (id === "add") {
+      Alert.alert(
+        "Add Place",
+        "Save an address for one-tap booking.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Set Home", onPress: () => openSavePlace("home") },
+          { text: "Set Work", onPress: () => openSavePlace("work") },
+        ]
+      );
+      return;
+    }
+
+    const place = id === "home" ? saved.home : saved.work;
+    const label = id === "home" ? "Home" : "Work";
+    if (place) {
+      goRecent(place);
+      return;
+    }
+
+    Alert.alert(
+      `Set ${label}`,
+      `You haven’t saved a ${label.toLowerCase()} address yet. Search and save one now.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: `Set ${label}`, onPress: () => openSavePlace(id) },
+      ]
+    );
   };
 
   const mapCoords =
@@ -318,22 +369,38 @@ export default function PassengerHomeScreen() {
             Quick Access
           </Text>
           <View style={styles.quickRow}>
-            {QUICK_ACCESS.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [
-                  styles.quickChip,
-                  pressed && { opacity: 0.88 },
-                ]}
-                // UI placeholder only — saved places not wired yet
-                onPress={() => undefined}
-              >
-                <View style={styles.quickIcon}>
-                  <Text style={styles.quickEmoji}>{item.emoji}</Text>
-                </View>
-                <Text style={styles.quickLabel}>{item.label}</Text>
-              </Pressable>
-            ))}
+            {QUICK_ACCESS.map((item) => {
+              const savedPlace =
+                item.id === "home"
+                  ? saved.home
+                  : item.id === "work"
+                    ? saved.work
+                    : null;
+              return (
+                <Pressable
+                  key={item.id}
+                  style={({ pressed }) => [
+                    styles.quickChip,
+                    pressed && { opacity: 0.88 },
+                  ]}
+                  onPress={() => onQuickAccess(item.id)}
+                >
+                  <View style={styles.quickIcon}>
+                    <Text style={styles.quickEmoji}>{item.emoji}</Text>
+                  </View>
+                  <Text style={styles.quickLabel}>{item.label}</Text>
+                  {savedPlace ? (
+                    <Text style={styles.quickSub} numberOfLines={1}>
+                      {savedPlace.title}
+                    </Text>
+                  ) : item.id !== "add" ? (
+                    <Text style={styles.quickSub}>Tap to set</Text>
+                  ) : (
+                    <Text style={styles.quickSub}>Save address</Text>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
 
           <Text style={[styles.section, { marginTop: 18 }]}>Recent</Text>
@@ -594,6 +661,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.dark,
     textAlign: "center",
+  },
+  quickSub: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: "400",
+    color: colors.muted,
+    textAlign: "center",
+    paddingHorizontal: 2,
   },
   empty: {
     ...typography.supporting,

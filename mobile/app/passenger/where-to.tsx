@@ -1,7 +1,7 @@
 import { LocationRow } from "@/components/passenger/LocationRow";
 import { colors, radii } from "@/constants/theme";
 import { resolveCurrentLocation, placeParams } from "@/lib/location";
-import { getRecentPlaces } from "@/lib/client-prefs";
+import { getRecentPlaces, setSavedPlace } from "@/lib/client-prefs";
 import { searchLivePlaces, type LivePlace } from "@/lib/places";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type FocusField = "pickup" | "dropoff";
+type SaveAs = "home" | "work";
 
 function parsePlaceFromParams(
   lat?: string,
@@ -56,7 +57,13 @@ export default function WhereToScreen() {
     dropoffCity?: string;
     focus?: string;
     serviceId?: string;
+    saveAs?: string;
   }>();
+
+  const saveAs: SaveAs | null =
+    params.saveAs === "home" || params.saveAs === "work"
+      ? params.saveAs
+      : null;
 
   const [pickup, setPickup] = useState<LivePlace | null>(() =>
     parsePlaceFromParams(
@@ -167,7 +174,21 @@ export default function WhereToScreen() {
     } as never);
   };
 
-  const onSelect = (place: LivePlace) => {
+  const onSelect = async (place: LivePlace) => {
+    if (saveAs) {
+      await setSavedPlace(saveAs, place);
+      setDropoff(place);
+      setQuery("");
+      setResults([]);
+      if (pickup) {
+        goPlan(pickup, place);
+      } else {
+        setFocus("pickup");
+        setLocMessage("Set your pickup location to continue.");
+      }
+      return;
+    }
+
     if (focus === "pickup") {
       setPickup(place);
       setFocus("dropoff");
@@ -200,8 +221,18 @@ export default function WhereToScreen() {
             <Ionicons name="arrow-back" size={20} color={colors.dark} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Plan your trip</Text>
-            <Text style={styles.subtitle}>Pickup → Destination</Text>
+            <Text style={styles.title}>
+              {saveAs === "home"
+                ? "Set Home"
+                : saveAs === "work"
+                  ? "Set Work"
+                  : "Plan your trip"}
+            </Text>
+            <Text style={styles.subtitle}>
+              {saveAs
+                ? "Search and choose an address to save"
+                : "Pickup → Destination"}
+            </Text>
           </View>
         </View>
 
@@ -247,7 +278,13 @@ export default function WhereToScreen() {
               style={[styles.dot, { backgroundColor: colors.secondaryDark }]}
             />
             <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Destination</Text>
+              <Text style={styles.fieldLabel}>
+                {saveAs === "home"
+                  ? "Home address"
+                  : saveAs === "work"
+                    ? "Work address"
+                    : "Destination"}
+              </Text>
               <Text
                 style={[styles.fieldValue, !dropoff && styles.placeholder]}
                 numberOfLines={1}

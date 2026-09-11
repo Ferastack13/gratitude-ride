@@ -9,7 +9,7 @@ import {
   shortAddress,
   statusTone,
 } from "@/lib/format";
-import { placeParams, resolveCurrentLocation } from "@/lib/location";
+import { placeParams, resolveCurrentLocation, startDeviceLocationWatch } from "@/lib/location";
 import type { LivePlace } from "@/lib/places";
 import { RIDE_OPTIONS } from "@/lib/ride-options";
 import { supabase } from "@/lib/supabase";
@@ -70,15 +70,54 @@ export default function PassengerHomeScreen() {
     if (res.ok) {
       setPickup(res.place);
     } else {
-      setPickup(null);
       setLocMessage(res.message);
     }
   }, []);
 
   useEffect(() => {
-    refreshLocation();
     getRecentPlaces().then(setRecent).catch(() => undefined);
-  }, [refreshLocation]);
+  }, []);
+
+  // Live device GPS while Home is focused — not a one-shot on mount.
+  useFocusEffect(
+    useCallback(() => {
+      let stopped = false;
+      let stopWatch: (() => void) | undefined;
+
+      (async () => {
+        setLocating(true);
+        setLocMessage(null);
+        const watch = await startDeviceLocationWatch({
+          onUpdate: (place) => {
+            if (stopped) return;
+            setPickup(place);
+            setLocating(false);
+            setLocMessage(null);
+          },
+          onError: (message) => {
+            if (stopped) return;
+            setLocating(false);
+            setLocMessage(message);
+          },
+        });
+        if (stopped) {
+          if ("stop" in watch) watch.stop();
+          return;
+        }
+        if ("error" in watch) {
+          setLocating(false);
+          setLocMessage(watch.error);
+          return;
+        }
+        stopWatch = watch.stop;
+      })();
+
+      return () => {
+        stopped = true;
+        stopWatch?.();
+      };
+    }, [])
+  );
 
   useFocusEffect(
     useCallback(() => {

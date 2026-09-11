@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/Button";
+import { ExpressRideDetails } from "@/components/passenger/ExpressRideDetails";
 import { StandardRideDetails } from "@/components/passenger/StandardRideDetails";
 import { colors, radii, typography } from "@/constants/theme";
+import { EXPRESS_RIDE_CONTENT } from "@/lib/express-ride-content";
 import { STANDARD_RIDE_CONTENT } from "@/lib/standard-ride-content";
 import {
   isRideOptionId,
@@ -20,7 +22,7 @@ const ACCENT: Record<RideOptionId, { iconBg: string; iconFg: string }> = {
 
 /**
  * Service details → existing where-to → plan booking with serviceId.
- * Standard uses the full details layout; Express/Comfort stay compact for now.
+ * Standard & Express use full details; Comfort stays compact for now.
  * No live map / driver GPS on this screen.
  */
 export default function ServiceDetailsScreen() {
@@ -29,6 +31,8 @@ export default function ServiceDetailsScreen() {
   const option = rideOptionById(serviceId);
   const accent = ACCENT[serviceId];
   const isStandard = serviceId === "standard";
+  const isExpress = serviceId === "express";
+  const rich = isStandard || isExpress;
 
   const startBooking = () => {
     router.push({
@@ -39,6 +43,12 @@ export default function ServiceDetailsScreen() {
       },
     } as never);
   };
+
+  const ctaLabel = isStandard
+    ? STANDARD_RIDE_CONTENT.ctaLabel
+    : isExpress
+      ? EXPRESS_RIDE_CONTENT.ctaLabel
+      : "Choose pickup & destination";
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -54,15 +64,14 @@ export default function ServiceDetailsScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={[
-          styles.body,
-          isStandard && styles.bodyStandard,
-        ]}
+        contentContainerStyle={[styles.body, rich && styles.bodyRich]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {isStandard ? (
           <StandardRideDetails />
+        ) : isExpress ? (
+          <ExpressRideDetails />
         ) : (
           <>
             <View style={[styles.heroIcon, { backgroundColor: accent.iconBg }]}>
@@ -91,15 +100,7 @@ export default function ServiceDetailsScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button
-          label={
-            isStandard
-              ? STANDARD_RIDE_CONTENT.ctaLabel
-              : "Choose pickup & destination"
-          }
-          onPress={startBooking}
-          size="lg"
-        />
+        <Button label={ctaLabel} onPress={startBooking} size="lg" />
       </View>
     </SafeAreaView>
   );
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
   },
-  bodyStandard: {
+  bodyRich: {
     paddingBottom: 32,
   },
   heroIcon: {

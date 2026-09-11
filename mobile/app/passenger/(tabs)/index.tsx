@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
-import { RouteMap } from "@/components/maps/RouteMap";
+import { BrandRoadAnimation } from "@/components/home/BrandRoadAnimation";
+import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { colors, radii, shadows, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { getRecentPlaces } from "@/lib/client-prefs";
@@ -116,22 +117,31 @@ export default function PassengerHomeScreen() {
     } as never);
   };
 
+  const mapCoords =
+    pickup != null
+      ? { lat: pickup.lat, lng: pickup.lng }
+      : null;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
         <View style={styles.topBar}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.brand}>Gratitude Ride</Text>
             <Text style={styles.hello}>
-              {greeting}, {first}
+              {greeting}, {first} 👋🏽
             </Text>
+            <Text style={styles.prompt}>Where are we taking you today?</Text>
           </View>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{first.charAt(0).toUpperCase()}</Text>
+            <Text style={styles.avatarText}>
+              {first.charAt(0).toUpperCase()}
+            </Text>
           </View>
         </View>
 
@@ -142,8 +152,11 @@ export default function PassengerHomeScreen() {
           ]}
           onPress={() => openWhereTo("dropoff")}
         >
-          <Ionicons name="search" size={22} color={colors.dark} />
+          <View style={styles.whereIcon}>
+            <Ionicons name="search" size={18} color={colors.white} />
+          </View>
           <Text style={styles.whereText}>Where to?</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedLight} />
         </Pressable>
 
         <Pressable
@@ -160,7 +173,7 @@ export default function PassengerHomeScreen() {
           />
           <View style={{ flex: 1 }}>
             <Text style={styles.pickupLabel}>Pickup</Text>
-            {locating ? (
+            {locating && !pickup ? (
               <View style={styles.pickupLoading}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.pickupValue}>Detecting location…</Text>
@@ -178,7 +191,7 @@ export default function PassengerHomeScreen() {
           <Text style={styles.edit}>{pickup ? "Edit" : "Set"}</Text>
         </Pressable>
 
-        {locMessage ? (
+        {locMessage && !pickup ? (
           <Pressable style={styles.permBanner} onPress={refreshLocation}>
             <Text style={styles.permTitle}>Location needed</Text>
             <Text style={styles.permBody}>{locMessage}</Text>
@@ -186,20 +199,15 @@ export default function PassengerHomeScreen() {
           </Pressable>
         ) : null}
 
-        {pickup && !locating ? (
-          <View style={styles.mapStrip}>
-            <RouteMap
-              center={{ lat: pickup.lat, lng: pickup.lng }}
-              pickup={{
-                lat: pickup.lat,
-                lng: pickup.lng,
-                label: "Pickup",
-              }}
-              height={132}
-              delta={0.035}
-            />
-          </View>
-        ) : null}
+        <View style={styles.mapBlock}>
+          <HomeLocationMap
+            coords={mapCoords}
+            loading={locating}
+            errorMessage={locMessage}
+            onRequestLocation={refreshLocation}
+            height={210}
+          />
+        </View>
 
         {active ? (
           <Pressable
@@ -226,7 +234,9 @@ export default function PassengerHomeScreen() {
               tone={statusTone(active.status)}
             />
           </Pressable>
-        ) : null}
+        ) : (
+          <BrandRoadAnimation />
+        )}
 
         <Text style={styles.section}>Recent</Text>
         {recent.length === 0 ? (
@@ -234,7 +244,7 @@ export default function PassengerHomeScreen() {
             Destinations you book will show up here for quick rebooking.
           </Text>
         ) : (
-          <View>
+          <View style={styles.recentList}>
             {recent.slice(0, 6).map((place, i) => (
               <View key={place.id}>
                 {i > 0 ? <View style={styles.divider} /> : null}
@@ -272,15 +282,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.white },
   body: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 36,
-    gap: 0,
+    paddingTop: 10,
+    paddingBottom: 40,
   },
   topBar: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 22,
+    marginBottom: 18,
   },
   brand: { ...typography.brand, marginBottom: 6 },
   hello: {
@@ -288,6 +297,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.dark,
     letterSpacing: -0.4,
+  },
+  prompt: {
+    marginTop: 6,
+    fontSize: 15,
+    fontWeight: "400",
+    color: colors.muted,
+    lineHeight: 21,
   },
   avatar: {
     width: 40,
@@ -305,15 +321,24 @@ const styles = StyleSheet.create({
   where: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     backgroundColor: colors.surfaceAlt,
     borderRadius: radii.lg,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    marginBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  whereIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
   },
   whereText: {
-    fontSize: 20,
+    flex: 1,
+    fontSize: 18,
     fontWeight: "600",
     color: colors.dark,
     letterSpacing: -0.2,
@@ -322,8 +347,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 8,
-    marginBottom: 16,
+    paddingVertical: 6,
+    marginBottom: 14,
   },
   pickupLabel: { ...typography.label, marginBottom: 2 },
   pickupValue: { ...typography.bodyStrong, fontSize: 14 },
@@ -338,7 +363,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: 14,
     gap: 4,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   permTitle: { fontWeight: "600", color: colors.dark, fontSize: 14 },
   permBody: { ...typography.supporting },
@@ -348,11 +373,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
   },
-  mapStrip: {
-    borderRadius: radii.lg,
-    overflow: "hidden",
-    marginBottom: 20,
-    backgroundColor: colors.surfaceAlt,
+  mapBlock: {
+    marginBottom: 8,
   },
   activeBanner: {
     flexDirection: "row",
@@ -361,7 +383,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: radii.lg,
     padding: 16,
-    marginBottom: 24,
+    marginTop: 12,
+    marginBottom: 20,
     ...shadows.soft,
   },
   activeTitle: {
@@ -383,18 +406,20 @@ const styles = StyleSheet.create({
   },
   section: {
     ...typography.section,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 6,
   },
   empty: {
     ...typography.supporting,
     paddingVertical: 8,
     paddingRight: 12,
   },
+  recentList: { marginBottom: 8 },
   recentRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   recentTitle: { ...typography.bodyStrong },
   recentSub: { ...typography.supporting, marginTop: 2 },

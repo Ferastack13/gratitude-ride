@@ -1,3 +1,4 @@
+import { colors, radii } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
@@ -12,14 +13,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const BG = "#000000";
-const CARD = "#1A1A1A";
-const TILE = "#222222";
-const TEXT = "#FFFFFF";
-const MUTED = "#A3A3A3";
-const BLUE = "#1D61E7";
-const GREEN = "#22C55E";
 
 function soon(label: string) {
   Alert.alert(label, "This section is coming soon in Gratitude app.");
@@ -36,10 +29,10 @@ function Tile({
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.tile, pressed && { opacity: 0.88 }]}
       onPress={onPress}
     >
-      <Ionicons name={icon} size={22} color={TEXT} />
+      <Ionicons name={icon} size={22} color={colors.primary} />
       <Text style={styles.tileLabel}>{label}</Text>
     </Pressable>
   );
@@ -63,7 +56,9 @@ function Row({
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.75 }]}
       onPress={onPress}
     >
-      <Ionicons name={icon} size={22} color={TEXT} style={styles.rowIcon} />
+      <View style={styles.rowIconWrap}>
+        <Ionicons name={icon} size={20} color={colors.dark} />
+      </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{title}</Text>
         {subtitle ? <Text style={styles.rowSub}>{subtitle}</Text> : null}
@@ -73,6 +68,7 @@ function Row({
           <Text style={styles.badgeText}>{badge}</Text>
         </View>
       ) : null}
+      <Ionicons name="chevron-forward" size={16} color={colors.mutedLight} />
     </Pressable>
   );
 }
@@ -96,7 +92,7 @@ export default function PassengerAccountScreen() {
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.name}>{name}</Text>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={14} color={TEXT} />
+              <Ionicons name="star" size={14} color={colors.secondaryDark} />
               <Text style={styles.rating}>5.00</Text>
             </View>
           </View>
@@ -107,7 +103,9 @@ export default function PassengerAccountScreen() {
             ]}
             onPress={() => soon("Profile")}
           >
-            <Ionicons name="person" size={28} color={MUTED} />
+            <Text style={styles.avatarText}>
+              {name.charAt(0).toUpperCase()}
+            </Text>
           </Pressable>
         </View>
 
@@ -120,7 +118,7 @@ export default function PassengerAccountScreen() {
           <Tile
             icon="wallet-outline"
             label="Wallet"
-            onPress={() => soon("Wallet")}
+            onPress={() => router.push("/passenger/wallet" as never)}
           />
           <Tile
             icon="shield-checkmark-outline"
@@ -135,10 +133,7 @@ export default function PassengerAccountScreen() {
         </View>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.card,
-            pressed && { opacity: 0.9 },
-          ]}
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
           onPress={() => soon("Safety check-up")}
         >
           <View style={{ flex: 1, paddingRight: 12 }}>
@@ -146,7 +141,6 @@ export default function PassengerAccountScreen() {
             <Text style={styles.cardSub}>Learn ways to make rides safer</Text>
           </View>
           <View style={styles.progressRing}>
-            <View style={styles.progressArc} />
             <Text style={styles.progressText}>1/5</Text>
           </View>
         </Pressable>
@@ -154,7 +148,7 @@ export default function PassengerAccountScreen() {
         <View style={styles.co2}>
           <Text style={styles.co2Label}>Estimated CO₂ saved</Text>
           <View style={styles.co2Value}>
-            <Ionicons name="leaf" size={16} color={GREEN} />
+            <Ionicons name="leaf" size={16} color={colors.success} />
             <Text style={styles.co2Num}>0 g</Text>
           </View>
         </View>
@@ -246,7 +240,7 @@ export default function PassengerAccountScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: colors.white,
   },
   body: {
     paddingHorizontal: 16,
@@ -261,7 +255,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: "700",
-    color: TEXT,
+    color: colors.dark,
     letterSpacing: -0.5,
   },
   ratingRow: {
@@ -271,7 +265,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   rating: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 14,
     fontWeight: "500",
   },
@@ -279,9 +273,14 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#2A2A2A",
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarText: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 24,
   },
   grid: {
     flexDirection: "row",
@@ -293,7 +292,7 @@ const styles = StyleSheet.create({
     width: "48%",
     flexGrow: 1,
     flexBasis: "47%",
-    backgroundColor: TILE,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     paddingVertical: 16,
     paddingHorizontal: 14,
@@ -303,12 +302,12 @@ const styles = StyleSheet.create({
     minHeight: 58,
   },
   tileLabel: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 15,
     fontWeight: "600",
   },
   card: {
-    backgroundColor: CARD,
+    backgroundColor: colors.primarySoft,
     borderRadius: 14,
     padding: 16,
     flexDirection: "row",
@@ -316,13 +315,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardTitle: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 16,
     fontWeight: "700",
     marginBottom: 4,
   },
   cardSub: {
-    color: MUTED,
+    color: colors.muted,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -331,24 +330,19 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 5,
-    borderColor: "#3A3A3A",
-    borderTopColor: BLUE,
-    borderRightColor: BLUE,
+    borderColor: colors.border,
+    borderTopColor: colors.primary,
+    borderRightColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    transform: [{ rotate: "-45deg" }],
-  },
-  progressArc: {
-    ...StyleSheet.absoluteFillObject,
   },
   progressText: {
-    color: TEXT,
+    color: colors.primary,
     fontSize: 13,
     fontWeight: "700",
-    transform: [{ rotate: "45deg" }],
   },
   co2: {
-    backgroundColor: CARD,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -358,7 +352,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   co2Label: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 15,
     fontWeight: "600",
   },
@@ -368,42 +362,48 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   co2Num: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 15,
     fontWeight: "700",
   },
   list: {
     gap: 2,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
-    gap: 14,
+    paddingVertical: 12,
+    gap: 12,
   },
-  rowIcon: {
-    width: 26,
+  rowIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rowTitle: {
-    color: TEXT,
+    color: colors.dark,
     fontSize: 16,
     fontWeight: "500",
   },
   rowSub: {
-    color: MUTED,
+    color: colors.muted,
     fontSize: 13,
     marginTop: 3,
     lineHeight: 18,
   },
   badge: {
-    backgroundColor: BLUE,
+    backgroundColor: colors.primary,
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 3,
+    marginRight: 4,
   },
   badgeText: {
-    color: TEXT,
+    color: colors.white,
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.3,
@@ -411,15 +411,15 @@ const styles = StyleSheet.create({
   signOut: {
     alignSelf: "flex-start",
     paddingVertical: 10,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   signOutText: {
-    color: MUTED,
+    color: colors.muted,
     fontSize: 15,
     fontWeight: "500",
   },
   version: {
-    color: "#555",
+    color: colors.mutedLight,
     fontSize: 12,
     marginBottom: 8,
   },

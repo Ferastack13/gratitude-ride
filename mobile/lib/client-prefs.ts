@@ -6,6 +6,9 @@ const KEYS = {
   work: "gr.saved.work",
   recent: "gr.recent.places",
   payment: "gr.payment.method",
+  walletBalance: "gr.wallet.balance",
+  vouchers: "gr.wallet.vouchers",
+  promos: "gr.wallet.promos",
 } as const;
 
 export type PaymentMethod = "cash" | "transfer";
@@ -76,6 +79,72 @@ export async function getPaymentMethod(): Promise<PaymentMethod> {
 
 export async function setPaymentMethod(method: PaymentMethod) {
   await AsyncStorage.setItem(KEYS.payment, method);
+}
+
+export async function getWalletBalance(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.walletBalance);
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function addWalletFunds(amount: number): Promise<number> {
+  const add = Math.max(0, Math.round(amount));
+  const current = await getWalletBalance();
+  const next = current + add;
+  await AsyncStorage.setItem(KEYS.walletBalance, String(next));
+  return next;
+}
+
+export async function getVoucherCodes(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.vouchers);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as string[];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addVoucherCode(code: string): Promise<string[]> {
+  const c = code.trim().toUpperCase();
+  if (!c) return getVoucherCodes();
+  const prev = await getVoucherCodes();
+  if (prev.includes(c)) return prev;
+  const next = [c, ...prev];
+  await AsyncStorage.setItem(KEYS.vouchers, JSON.stringify(next));
+  return next;
+}
+
+export async function getPromoCodes(): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.promos);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as string[];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addPromoCode(code: string): Promise<{
+  ok: boolean;
+  label: string | null;
+  codes: string[];
+}> {
+  const c = code.trim().toUpperCase();
+  const check = applyPromo(2500, c);
+  if (!check.label) {
+    return { ok: false, label: null, codes: await getPromoCodes() };
+  }
+  const prev = await getPromoCodes();
+  const codes = prev.includes(c) ? prev : [c, ...prev];
+  await AsyncStorage.setItem(KEYS.promos, JSON.stringify(codes));
+  return { ok: true, label: check.label, codes };
 }
 
 /** Simple working promo codes */

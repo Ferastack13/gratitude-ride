@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     top: 8,
     height: 70,
     borderRadius: 40,
-    backgroundColor: "rgba(29,97,231,0.04)",
+    backgroundColor: "rgba(18,55,42,0.06)",
   },
   ambienceSoft: {
     position: "absolute",

@@ -340,7 +340,7 @@ export default function PassengerWalletScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
+  safe: { flex: 1, backgroundColor: colors.surface },
   topBar: {
     paddingHorizontal: 12,
     paddingTop: 4,

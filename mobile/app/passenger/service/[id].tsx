@@ -77,7 +77,7 @@ export default function ServiceDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.white },
+  safe: { flex: 1, backgroundColor: colors.surface },
   head: {
     flexDirection: "row",
     alignItems: "center",

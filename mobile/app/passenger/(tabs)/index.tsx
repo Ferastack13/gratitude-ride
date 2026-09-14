@@ -449,7 +449,7 @@ export default function PassengerHomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   mapStage: {
     position: "relative",

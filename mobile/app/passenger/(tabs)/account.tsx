@@ -240,7 +240,7 @@ export default function PassengerAccountScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   body: {
     paddingHorizontal: 16,

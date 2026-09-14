@@ -83,7 +83,7 @@ export function OsmRasterMap({
             {
               left: mx - 9,
               top: my - 9,
-              backgroundColor: m.color ?? "#1D61E7",
+              backgroundColor: m.color ?? "#12372A",
             },
           ]}
         />

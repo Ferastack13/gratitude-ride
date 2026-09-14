@@ -131,10 +131,10 @@ export function RouteMap({
       list.push({ lat: dropoff.lat, lng: dropoff.lng, color: "#F59E0B" });
     }
     if (driver) {
-      list.push({ lat: driver.lat, lng: driver.lng, color: "#1D61E7" });
+      list.push({ lat: driver.lat, lng: driver.lng, color: "#12372A" });
     }
     if (!pickup && !dropoff && !driver) {
-      list.push({ lat: center.lat, lng: center.lng, color: "#4B84F0" });
+      list.push({ lat: center.lat, lng: center.lng, color: "#1F5A42" });
     }
     return list;
   }, [

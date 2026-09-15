@@ -9,6 +9,7 @@ const KEYS = {
   walletBalance: "gr.wallet.balance",
   vouchers: "gr.wallet.vouchers",
   promos: "gr.wallet.promos",
+  safety: "gr.safety.prefs",
 } as const;
 
 export type PaymentMethod = "cash" | "transfer";
@@ -164,4 +165,65 @@ export function applyPromo(
     return { fee: Math.max(1000, fee - 300), label: "₦300 off with EXPRESS" };
   }
   return { fee, label: null };
+}
+
+export type RideCheckMode = "all" | "night" | "off";
+
+export type EmergencyContact = {
+  id: string;
+  name: string;
+  phone: string;
+};
+
+export type SafetyPrefs = {
+  pinVerification: boolean;
+  pinCode: string | null;
+  audioRecording: boolean;
+  emergencyContactsEnabled: boolean;
+  emergencyContacts: EmergencyContact[];
+  shareTripLocation: boolean;
+  rideCheck: RideCheckMode;
+};
+
+const DEFAULT_SAFETY: SafetyPrefs = {
+  pinVerification: false,
+  pinCode: null,
+  audioRecording: false,
+  emergencyContactsEnabled: false,
+  emergencyContacts: [],
+  shareTripLocation: true,
+  rideCheck: "all",
+};
+
+export async function getSafetyPrefs(): Promise<SafetyPrefs> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.safety);
+    if (!raw) return { ...DEFAULT_SAFETY };
+    const parsed = JSON.parse(raw) as Partial<SafetyPrefs>;
+    return {
+      ...DEFAULT_SAFETY,
+      ...parsed,
+      emergencyContacts: Array.isArray(parsed.emergencyContacts)
+        ? parsed.emergencyContacts
+        : [],
+    };
+  } catch {
+    return { ...DEFAULT_SAFETY };
+  }
+}
+
+export async function setSafetyPrefs(
+  patch: Partial<SafetyPrefs>
+): Promise<SafetyPrefs> {
+  const current = await getSafetyPrefs();
+  const next: SafetyPrefs = {
+    ...current,
+    ...patch,
+    emergencyContacts:
+      patch.emergencyContacts !== undefined
+        ? patch.emergencyContacts
+        : current.emergencyContacts,
+  };
+  await AsyncStorage.setItem(KEYS.safety, JSON.stringify(next));
+  return next;
 }

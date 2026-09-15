@@ -41,6 +41,10 @@ export default function PassengerLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="service/[id]" />
       <Stack.Screen name="wallet" />
+      <Stack.Screen name="safety" options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="safety-ride-check" />
+      <Stack.Screen name="safety-tips" />
+      <Stack.Screen name="safety-about" />
       <Stack.Screen name="where-to" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="plan" />
       <Stack.Screen name="book" />

@@ -123,7 +123,7 @@ export default function PassengerAccountScreen() {
           <Tile
             icon="shield-checkmark-outline"
             label="Safety"
-            onPress={() => soon("Safety")}
+            onPress={() => router.push("/passenger/safety" as never)}
           />
           <Tile
             icon="file-tray-outline"
@@ -134,7 +134,7 @@ export default function PassengerAccountScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}
-          onPress={() => soon("Safety check-up")}
+          onPress={() => router.push("/passenger/safety" as never)}
         >
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.cardTitle}>Safety check-up</Text>

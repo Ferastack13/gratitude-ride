@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -74,11 +73,7 @@ export default function PassengerInboxScreen() {
 
       <Text style={styles.title}>Inbox</Text>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
+      <View style={styles.chips}>
         {INBOX_FILTERS.map((id) => {
           const on = filter === id;
           return (
@@ -93,7 +88,7 @@ export default function PassengerInboxScreen() {
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       <View style={styles.codeRow}>
         <Ionicons name="pricetag" size={15} color={colors.muted} />
@@ -199,10 +194,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   close: {
-    width: 44,
-    height: 44,
-    marginLeft: 8,
-    marginTop: 2,
+    width: 40,
+    height: 36,
+    marginLeft: 10,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -212,12 +206,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.8,
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginTop: 2,
+    marginBottom: 10,
   },
   chips: {
     paddingHorizontal: 20,
     gap: 8,
-    paddingBottom: 16,
+    marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -242,13 +237,14 @@ const styles = StyleSheet.create({
   },
   codeRow: {
     marginHorizontal: 20,
+    marginTop: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     backgroundColor: colors.white,
     borderRadius: 22,
     paddingHorizontal: 16,
-    minHeight: 46,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
   },

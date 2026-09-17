@@ -1,23 +1,18 @@
-import { colors, radii, shadows, typography } from "@/constants/theme";
+import { colors } from "@/constants/theme";
 import {
-  EMPTY_COPY,
   FILTER_LABELS,
   INBOX_FILTERS,
   getInboxMessages,
-  markInboxRead,
   redeemInboxOfferCode,
   type InboxFilter,
-  type InboxMessage,
 } from "@/lib/inbox";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,79 +22,39 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-function formatWhen(ts: number) {
-  const diff = Date.now() - ts;
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString();
-}
+const BG = "#111613";
+const FIELD = "#2C322E";
+const CHIP_OFF = "#2C322E";
+const MUTED = "#A8ADA8";
 
-const CATEGORY_TINT: Record<
-  InboxMessage["category"],
-  { bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
-  offers: {
-    bg: colors.secondarySoft,
-    fg: colors.secondaryDark,
-    icon: "pricetag",
-  },
-  support: {
-    bg: colors.primarySoft,
-    fg: colors.primary,
-    icon: "chatbubbles",
-  },
-  updates: {
-    bg: colors.successSoft,
-    fg: colors.success,
-    icon: "notifications",
-  },
-  priority: {
-    bg: colors.dangerSoft,
-    fg: colors.danger,
-    icon: "alert-circle",
-  },
-};
+function MailboxArt() {
+  return (
+    <View style={art.wrap} accessibilityElementsHidden>
+      <View style={art.flagPole} />
+      <View style={art.flag} />
+      <View style={art.body}>
+        <View style={art.lid} />
+        <View style={art.door} />
+      </View>
+    </View>
+  );
+}
 
 export default function PassengerInboxScreen() {
   const [filter, setFilter] = useState<InboxFilter>("all");
-  const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
 
-  const load = useCallback(async () => {
-    const list = await getInboxMessages("all");
-    setMessages(list);
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      load()
-        .catch(() => undefined)
-        .finally(() => setLoading(false));
-    }, [load])
+      getInboxMessages("all").catch(() => undefined);
+    }, [])
   );
-
-  const visible = useMemo(
-    () =>
-      filter === "all"
-        ? messages
-        : messages.filter((m) => m.category === filter),
-    [filter, messages]
-  );
-
-  const empty = EMPTY_COPY[filter];
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load().catch(() => undefined);
+    await getInboxMessages("all").catch(() => undefined);
     setRefreshing(false);
   };
 
@@ -112,342 +67,242 @@ export default function PassengerInboxScreen() {
       Alert.alert("Invalid code", "Try GRAT10, WELCOME, or EXPRESS.");
       return;
     }
-    setMessages(res.messages);
     setCode("");
-    setFilter("offers");
     Alert.alert("Offer saved", res.label ?? "Your offer code was added.");
-  };
-
-  const onOpenMessage = async (msg: InboxMessage) => {
-    if (!msg.read) {
-      const next = await markInboxRead(msg.id);
-      setMessages(next);
-    }
-    if (msg.category === "support") {
-      Linking.openURL("https://wa.me/2348000000000").catch(() => undefined);
-    }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <StatusBar style="light" />
+
+      <Pressable
+        style={styles.close}
+        onPress={() => router.back()}
+        hitSlop={12}
+        accessibilityLabel="Close inbox"
       >
-        <View style={styles.topBar}>
-          <Pressable
-            style={styles.close}
-            onPress={() => router.back()}
-            hitSlop={10}
-            accessibilityLabel="Close inbox"
-          >
-            <Ionicons name="close" size={26} color={colors.dark} />
-          </Pressable>
-        </View>
+        <Ionicons name="close" size={26} color={colors.white} />
+      </Pressable>
 
-        <Text style={styles.title}>Inbox</Text>
+      <Text style={styles.title}>Inbox</Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chips}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chips}
+      >
+        {INBOX_FILTERS.map((id) => {
+          const on = filter === id;
+          return (
+            <Pressable
+              key={id}
+              onPress={() => setFilter(id)}
+              style={[styles.chip, on ? styles.chipOn : styles.chipOff]}
+            >
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>
+                {FILTER_LABELS[id]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.codeRow}>
+        <Ionicons name="pricetag" size={15} color={MUTED} />
+        <TextInput
+          style={styles.codeInput}
+          placeholder="Add new offer code"
+          placeholderTextColor={MUTED}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          value={code}
+          onChangeText={setCode}
+          onSubmitEditing={onAddCode}
+          returnKeyType="done"
+          selectionColor={colors.secondary}
+        />
+        {savingCode ? (
+          <ActivityIndicator size="small" color={colors.secondary} />
+        ) : null}
+      </View>
+
+      <View style={styles.emptyWrap}>
+        <MailboxArt />
+        <Text style={styles.emptyTitle}>No new messages</Text>
+        <Text style={styles.emptyBody}>
+          Check back for offers and important notifications.
+        </Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.refresh,
+            pressed && { opacity: 0.8 },
+          ]}
+          onPress={onRefresh}
+          disabled={refreshing}
         >
-          {INBOX_FILTERS.map((id) => {
-            const on = filter === id;
-            return (
-              <Pressable
-                key={id}
-                onPress={() => setFilter(id)}
-                style={({ pressed }) => [
-                  styles.chip,
-                  on && styles.chipOn,
-                  pressed && { opacity: 0.86 },
-                ]}
-              >
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                  {FILTER_LABELS[id]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        <View style={styles.codeRow}>
-          <Ionicons name="pricetag" size={16} color={colors.muted} />
-          <TextInput
-            style={styles.codeInput}
-            placeholder="Add new offer code"
-            placeholderTextColor={colors.mutedLight}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            value={code}
-            onChangeText={setCode}
-            onSubmitEditing={onAddCode}
-            returnKeyType="done"
-          />
-          {savingCode ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : code.trim() ? (
-            <Pressable onPress={onAddCode} hitSlop={8}>
-              <Text style={styles.codeAdd}>Add</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
-        {loading ? (
-          <View style={styles.emptyWrap}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : visible.length === 0 ? (
-          <View style={styles.emptyWrap}>
-            <View style={styles.mailbox}>
-              <View style={styles.mailboxFlag} />
-              <Ionicons name="file-tray" size={42} color={colors.primary} />
-            </View>
-            <Text style={styles.emptyTitle}>{empty.title}</Text>
-            <Text style={styles.emptyBody}>{empty.body}</Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.refresh,
-                pressed && { opacity: 0.88 },
-              ]}
-              onPress={onRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? (
-                <ActivityIndicator size="small" color={colors.dark} />
-              ) : (
-                <Text style={styles.refreshText}>Refresh</Text>
-              )}
-            </Pressable>
-          </View>
-        ) : (
-          <ScrollView
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-          >
-            {visible.map((msg) => {
-              const tint = CATEGORY_TINT[msg.category];
-              return (
-                <Pressable
-                  key={msg.id}
-                  onPress={() => onOpenMessage(msg)}
-                  style={({ pressed }) => [
-                    styles.card,
-                    pressed && { opacity: 0.92 },
-                  ]}
-                >
-                  <View style={[styles.cardIcon, { backgroundColor: tint.bg }]}>
-                    <Ionicons name={tint.icon} size={18} color={tint.fg} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.cardTop}>
-                      <Text style={styles.cardTitle} numberOfLines={1}>
-                        {msg.title}
-                      </Text>
-                      {!msg.read ? <View style={styles.unread} /> : null}
-                    </View>
-                    <Text style={styles.cardBody} numberOfLines={2}>
-                      {msg.body}
-                    </Text>
-                    <Text style={styles.cardTime}>{formatWhen(msg.createdAt)}</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-            <Pressable
-              style={({ pressed }) => [
-                styles.refresh,
-                { alignSelf: "center", marginTop: 8 },
-                pressed && { opacity: 0.88 },
-              ]}
-              onPress={onRefresh}
-            >
-              <Text style={styles.refreshText}>Refresh</Text>
-            </Pressable>
-          </ScrollView>
-        )}
-      </KeyboardAvoidingView>
+          {refreshing ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <Text style={styles.refreshText}>Refresh</Text>
+          )}
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
+const art = StyleSheet.create({
+  wrap: {
+    width: 88,
+    height: 72,
+    marginBottom: 6,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  flagPole: {
+    position: "absolute",
+    right: 18,
+    top: 2,
+    width: 5,
+    height: 34,
+    borderRadius: 1,
+    backgroundColor: "#1A1C1A",
+  },
+  flag: {
+    position: "absolute",
+    right: 22,
+    top: 4,
+    width: 16,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: "#1A1C1A",
+  },
+  body: {
+    width: 58,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#F3F1EC",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lid: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 12,
+    backgroundColor: "#DDD8CE",
+  },
+  door: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#C8C3B8",
+    marginTop: 6,
+  },
+});
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  topBar: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
+  safe: {
+    flex: 1,
+    backgroundColor: BG,
   },
   close: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    marginLeft: 8,
+    marginTop: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
+    color: colors.white,
     fontSize: 34,
     fontWeight: "700",
-    color: colors.dark,
-    letterSpacing: -0.6,
+    letterSpacing: -0.8,
     paddingHorizontal: 20,
     marginBottom: 16,
   },
   chips: {
     paddingHorizontal: 20,
     gap: 8,
-    paddingBottom: 14,
+    paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
   },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
   chipOn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
+  chipOff: {
+    backgroundColor: CHIP_OFF,
   },
   chipText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.dark,
+    color: MUTED,
   },
   chipTextOn: {
-    color: colors.white,
+    color: colors.dark,
   },
   codeRow: {
     marginHorizontal: 20,
-    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radii.full,
+    backgroundColor: FIELD,
+    borderRadius: 22,
     paddingHorizontal: 16,
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
+    minHeight: 46,
   },
   codeInput: {
     flex: 1,
+    color: colors.white,
     fontSize: 15,
-    color: colors.dark,
     paddingVertical: 12,
-    fontWeight: "500",
-  },
-  codeAdd: {
-    color: colors.primary,
-    fontWeight: "700",
-    fontSize: 14,
+    fontWeight: "400",
   },
   emptyWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 36,
-    paddingBottom: 48,
-    gap: 10,
-  },
-  mailbox: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    ...shadows.soft,
-  },
-  mailboxFlag: {
-    position: "absolute",
-    top: 14,
-    right: 16,
-    width: 10,
-    height: 18,
-    borderRadius: 2,
-    backgroundColor: colors.secondary,
+    paddingHorizontal: 40,
+    paddingBottom: 72,
+    gap: 8,
   },
   emptyTitle: {
-    ...typography.bodyStrong,
-    fontSize: 18,
+    color: colors.white,
+    fontSize: 17,
+    fontWeight: "700",
     textAlign: "center",
+    marginTop: 10,
   },
   emptyBody: {
-    ...typography.supporting,
+    color: MUTED,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: "center",
-    maxWidth: 280,
+    maxWidth: 300,
+    marginBottom: 6,
   },
   refresh: {
-    marginTop: 10,
-    minWidth: 108,
-    minHeight: 40,
+    marginTop: 8,
+    minWidth: 96,
+    minHeight: 38,
     paddingHorizontal: 22,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: FIELD,
     alignItems: "center",
     justifyContent: "center",
   },
   refreshText: {
-    fontSize: 15,
+    color: colors.white,
+    fontSize: 14,
     fontWeight: "600",
-    color: colors.dark,
-  },
-  list: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 36,
-    gap: 10,
-  },
-  card: {
-    flexDirection: "row",
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    ...shadows.card,
-  },
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  cardTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: colors.dark,
-  },
-  unread: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.secondary,
-  },
-  cardBody: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.muted,
-  },
-  cardTime: {
-    marginTop: 6,
-    fontSize: 12,
-    color: colors.mutedLight,
-    fontWeight: "500",
   },
 });

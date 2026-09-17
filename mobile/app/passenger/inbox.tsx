@@ -2,14 +2,13 @@ import { colors } from "@/constants/theme";
 import {
   FILTER_LABELS,
   INBOX_FILTERS,
-  getInboxMessages,
   redeemInboxOfferCode,
   type InboxFilter,
 } from "@/lib/inbox";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { router } from "expo-router";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -21,11 +20,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const BG = "#111613";
-const FIELD = "#2C322E";
-const CHIP_OFF = "#2C322E";
-const MUTED = "#A8ADA8";
 
 function MailboxArt() {
   return (
@@ -46,15 +40,9 @@ export default function PassengerInboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      getInboxMessages("all").catch(() => undefined);
-    }, [])
-  );
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await getInboxMessages("all").catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 400));
     setRefreshing(false);
   };
 
@@ -73,7 +61,7 @@ export default function PassengerInboxScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       <Pressable
         style={styles.close}
@@ -81,7 +69,7 @@ export default function PassengerInboxScreen() {
         hitSlop={12}
         accessibilityLabel="Close inbox"
       >
-        <Ionicons name="close" size={26} color={colors.white} />
+        <Ionicons name="close" size={26} color={colors.dark} />
       </Pressable>
 
       <Text style={styles.title}>Inbox</Text>
@@ -108,21 +96,21 @@ export default function PassengerInboxScreen() {
       </ScrollView>
 
       <View style={styles.codeRow}>
-        <Ionicons name="pricetag" size={15} color={MUTED} />
+        <Ionicons name="pricetag" size={15} color={colors.muted} />
         <TextInput
           style={styles.codeInput}
           placeholder="Add new offer code"
-          placeholderTextColor={MUTED}
+          placeholderTextColor={colors.mutedLight}
           autoCapitalize="characters"
           autoCorrect={false}
           value={code}
           onChangeText={setCode}
           onSubmitEditing={onAddCode}
           returnKeyType="done"
-          selectionColor={colors.secondary}
+          selectionColor={colors.primary}
         />
         {savingCode ? (
-          <ActivityIndicator size="small" color={colors.secondary} />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : null}
       </View>
 
@@ -141,7 +129,7 @@ export default function PassengerInboxScreen() {
           disabled={refreshing}
         >
           {refreshing ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color={colors.dark} />
           ) : (
             <Text style={styles.refreshText}>Refresh</Text>
           )}
@@ -166,7 +154,7 @@ const art = StyleSheet.create({
     width: 5,
     height: 34,
     borderRadius: 1,
-    backgroundColor: "#1A1C1A",
+    backgroundColor: colors.primaryDark,
   },
   flag: {
     position: "absolute",
@@ -175,16 +163,18 @@ const art = StyleSheet.create({
     width: 16,
     height: 12,
     borderRadius: 2,
-    backgroundColor: "#1A1C1A",
+    backgroundColor: colors.secondary,
   },
   body: {
     width: 58,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#F3F1EC",
+    backgroundColor: colors.white,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   lid: {
     position: "absolute",
@@ -192,13 +182,13 @@ const art = StyleSheet.create({
     left: 0,
     right: 0,
     height: 12,
-    backgroundColor: "#DDD8CE",
+    backgroundColor: colors.surfaceAlt,
   },
   door: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#C8C3B8",
+    backgroundColor: colors.primarySoft,
     marginTop: 6,
   },
 });
@@ -206,7 +196,7 @@ const art = StyleSheet.create({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: BG,
+    backgroundColor: colors.surface,
   },
   close: {
     width: 44,
@@ -217,7 +207,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    color: colors.white,
+    color: colors.dark,
     fontSize: 34,
     fontWeight: "700",
     letterSpacing: -0.8,
@@ -237,15 +227,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   chipOn: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
   },
   chipOff: {
-    backgroundColor: CHIP_OFF,
+    backgroundColor: colors.surfaceAlt,
   },
   chipText: {
     fontSize: 14,
     fontWeight: "600",
-    color: MUTED,
+    color: colors.muted,
   },
   chipTextOn: {
     color: colors.dark,
@@ -255,14 +245,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: FIELD,
+    backgroundColor: colors.white,
     borderRadius: 22,
     paddingHorizontal: 16,
     minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   codeInput: {
     flex: 1,
-    color: colors.white,
+    color: colors.dark,
     fontSize: 15,
     paddingVertical: 12,
     fontWeight: "400",
@@ -276,14 +268,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyTitle: {
-    color: colors.white,
+    color: colors.dark,
     fontSize: 17,
     fontWeight: "700",
     textAlign: "center",
     marginTop: 10,
   },
   emptyBody: {
-    color: MUTED,
+    color: colors.muted,
     fontSize: 14,
     lineHeight: 20,
     textAlign: "center",
@@ -296,12 +288,14 @@ const styles = StyleSheet.create({
     minHeight: 38,
     paddingHorizontal: 22,
     borderRadius: 999,
-    backgroundColor: FIELD,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   refreshText: {
-    color: colors.white,
+    color: colors.dark,
     fontSize: 14,
     fontWeight: "600",
   },

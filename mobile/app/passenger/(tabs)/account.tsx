@@ -128,7 +128,7 @@ export default function PassengerAccountScreen() {
           <Tile
             icon="file-tray-outline"
             label="Inbox"
-            onPress={() => soon("Inbox")}
+            onPress={() => router.push("/passenger/inbox" as never)}
           />
         </View>
 

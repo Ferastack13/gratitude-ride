@@ -1,3 +1,5 @@
+import "react-native-gesture-handler";
+
 import { AuthProvider } from "@/context/auth";
 import { colors } from "@/constants/theme";
 import { Stack } from "expo-router";

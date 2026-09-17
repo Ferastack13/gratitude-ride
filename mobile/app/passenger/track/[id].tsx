@@ -588,6 +588,13 @@ export default function PassengerTrackScreen() {
               style={styles.actionBtn}
               onPress={() => router.push("/passenger/safety" as never)}
             >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.actionText}>Safety</Text>
+            </Pressable>
             <Pressable
               style={styles.actionBtn}
               onPress={() => Linking.openURL("https://wa.me/2348000000000")}

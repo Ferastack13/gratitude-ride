@@ -16,6 +16,7 @@ export type AppSettings = {
   reduceMotion: boolean;
   highContrast: boolean;
   simpleMode: boolean;
+  seniorIdentification: boolean;
   privacy: {
     shareLocation: boolean;
     personalize: boolean;
@@ -52,6 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: false,
   highContrast: false,
   simpleMode: false,
+  seniorIdentification: false,
   privacy: {
     shareLocation: true,
     personalize: true,
@@ -283,3 +285,8 @@ export function reserveSubtitle(value: ReserveMatch) {
 export function nearbySubtitle(value: NearbyAlert) {
   return NEARBY_OPTIONS.find((o) => o.value === value)?.title ?? "In-app banner";
 }
+
+export const SENIOR_SUPPORT_WHATSAPP =
+  "https://wa.me/2348000000000?text=" +
+  encodeURIComponent("Hello Gratitude Ride, I need Simple Mode phone support.");
+export const SENIOR_SUPPORT_TEL = "tel:+2348000000000";

@@ -1,8 +1,10 @@
 import { colors, radii } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Linking,
@@ -76,11 +78,20 @@ function Row({
 export default function PassengerAccountScreen() {
   const { profile, signOut, setAccountTypePreference } = useAuth();
   const insets = useSafeAreaInsets();
+  const [simpleMode, setSimpleMode] = useState(false);
   const name = profile?.full_name ?? "Passenger";
   const version =
     Constants.expoConfig?.version ??
     Constants.nativeAppVersion ??
     "1.0.0";
+
+  useFocusEffect(
+    useCallback(() => {
+      getAppSettings()
+        .then((s) => setSimpleMode(s.simpleMode))
+        .catch(() => undefined);
+    }, [])
+  );
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -90,7 +101,7 @@ export default function PassengerAccountScreen() {
       >
         <View style={styles.header}>
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.name}>{name}</Text>
+            <Text style={[styles.name, simpleMode && { fontSize: 34 }]}>{name}</Text>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.secondaryDark} />
               <Text style={styles.rating}>5.00</Text>
@@ -113,7 +124,13 @@ export default function PassengerAccountScreen() {
           <Tile
             icon="help-buoy-outline"
             label="Help"
-            onPress={() => Linking.openURL("https://wa.me/2348000000000")}
+            onPress={() =>
+              Linking.openURL(
+                simpleMode
+                  ? SENIOR_SUPPORT_WHATSAPP
+                  : "https://wa.me/2348000000000"
+              )
+            }
           />
           <Tile
             icon="wallet-outline"
@@ -170,7 +187,7 @@ export default function PassengerAccountScreen() {
             title="Simple mode"
             subtitle="A simplified app for older adults"
             badge="NEW"
-            onPress={() => router.push("/passenger/settings/accessibility" as never)}
+            onPress={() => router.push("/passenger/simple-mode" as never)}
           />
           <Row
             icon="book-outline"
@@ -178,37 +195,41 @@ export default function PassengerAccountScreen() {
             subtitle="Manage all your contacts at Gratitude app"
             onPress={() => soon("Contacts")}
           />
-          <Row
-            icon="person-add-outline"
-            title="Earn by driving or delivering"
-            onPress={async () => {
-              await setAccountTypePreference("driver");
-              router.replace("/rider" as never);
-            }}
-          />
-          <Row
-            icon="people-circle-outline"
-            title="Saved groups"
-            badge="NEW"
-            onPress={() => soon("Saved groups")}
-          />
-          <Row
-            icon="briefcase-outline"
-            title="Set up your business profile"
-            subtitle="Automate work travel & meal expenses"
-            onPress={async () => {
-              await setAccountTypePreference("business");
-              router.replace("/business" as never);
-            }}
-          />
-          <Row
-            icon="business-outline"
-            title="Gratitude for Business"
-            onPress={async () => {
-              await setAccountTypePreference("business");
-              router.replace("/business" as never);
-            }}
-          />
+          {!simpleMode ? (
+            <>
+              <Row
+                icon="person-add-outline"
+                title="Earn by driving or delivering"
+                onPress={async () => {
+                  await setAccountTypePreference("driver");
+                  router.replace("/rider" as never);
+                }}
+              />
+              <Row
+                icon="people-circle-outline"
+                title="Saved groups"
+                badge="NEW"
+                onPress={() => soon("Saved groups")}
+              />
+              <Row
+                icon="briefcase-outline"
+                title="Set up your business profile"
+                subtitle="Automate work travel & meal expenses"
+                onPress={async () => {
+                  await setAccountTypePreference("business");
+                  router.replace("/business" as never);
+                }}
+              />
+              <Row
+                icon="business-outline"
+                title="Gratitude for Business"
+                onPress={async () => {
+                  await setAccountTypePreference("business");
+                  router.replace("/business" as never);
+                }}
+              />
+            </>
+          ) : null}
           <Row
             icon="person-outline"
             title="Manage Gratitude account"

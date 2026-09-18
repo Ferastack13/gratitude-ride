@@ -3,7 +3,7 @@ import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { colors, radii, shadows, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { getRecentPlaces, getSavedPlaces, type SavedPlaces } from "@/lib/client-prefs";
-import { commutePromptNow, getAppSettings } from "@/lib/settings";
+import { commutePromptNow, getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import {
   formatCurrency,
   formatStatus,
@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -50,6 +51,7 @@ export default function PassengerHomeScreen() {
   const [commuteNudge, setCommuteNudge] = useState<"morning" | "evening" | null>(
     null
   );
+  const [simpleMode, setSimpleMode] = useState(false);
   const [recent, setRecent] = useState<LivePlace[]>([]);
   const [saved, setSaved] = useState<SavedPlaces>({ home: null, work: null });
   const [active, setActive] = useState<{
@@ -85,7 +87,10 @@ export default function PassengerHomeScreen() {
       getSavedPlaces().then(setSaved).catch(() => undefined);
       getRecentPlaces().then(setRecent).catch(() => undefined);
       getAppSettings()
-        .then((s) => setCommuteNudge(commutePromptNow(s)))
+        .then((s) => {
+          setCommuteNudge(commutePromptNow(s));
+          setSimpleMode(s.simpleMode);
+        })
         .catch(() => undefined);
     }, [])
   );
@@ -280,25 +285,40 @@ export default function PassengerHomeScreen() {
           <Text style={styles.nice}>
             {greeting}, {first}
           </Text>
-          <Text style={styles.headline}>Where are you going?</Text>
+          <Text style={[styles.headline, simpleMode && { fontSize: 30 }]}>
+            Where are you going?
+          </Text>
 
           <Pressable
             style={({ pressed }) => [
               styles.where,
+              simpleMode && styles.whereSimple,
               pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] },
             ]}
             onPress={() => openWhereTo("dropoff")}
           >
-            <View style={styles.whereIcon}>
-              <Ionicons name="search" size={18} color={colors.white} />
+            <View style={[styles.whereIcon, simpleMode && { width: 44, height: 44 }]}>
+              <Ionicons name="search" size={simpleMode ? 22 : 18} color={colors.white} />
             </View>
-            <Text style={styles.whereText}>Where to?</Text>
+            <Text style={[styles.whereText, simpleMode && { fontSize: 20 }]}>
+              Where to?
+            </Text>
             <Ionicons
               name="chevron-forward"
               size={18}
               color={colors.mutedLight}
             />
           </Pressable>
+
+          {simpleMode ? (
+            <Pressable
+              style={styles.simpleHelp}
+              onPress={() => Linking.openURL(SENIOR_SUPPORT_WHATSAPP)}
+            >
+              <Ionicons name="call" size={18} color={colors.white} />
+              <Text style={styles.simpleHelpText}>Call support</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [
@@ -393,7 +413,10 @@ export default function PassengerHomeScreen() {
             Quick Access
           </Text>
           <View style={styles.quickRow}>
-            {QUICK_ACCESS.map((item) => {
+            {(simpleMode
+              ? QUICK_ACCESS.filter((item) => item.id !== "add")
+              : QUICK_ACCESS
+            ).map((item) => {
               const savedPlace =
                 item.id === "home"
                   ? saved.home
@@ -427,6 +450,8 @@ export default function PassengerHomeScreen() {
             })}
           </View>
 
+          {!simpleMode ? (
+            <>
           <Text style={[styles.section, { marginTop: 18 }]}>Recent</Text>
           {recent.length === 0 ? (
             <Text style={styles.empty}>
@@ -464,6 +489,8 @@ export default function PassengerHomeScreen() {
               ))}
             </View>
           )}
+            </>
+          ) : null}
         </ScrollView>
       </View>
     </View>
@@ -568,6 +595,25 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     ...shadows.card,
+  },
+  whereSimple: {
+    paddingVertical: 18,
+    marginBottom: 10,
+  },
+  simpleHelp: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  simpleHelpText: {
+    color: colors.white,
+    fontWeight: "700",
+    fontSize: 16,
   },
   whereIcon: {
     width: 36,

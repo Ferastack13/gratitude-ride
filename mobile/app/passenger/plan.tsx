@@ -163,7 +163,7 @@ export default function PassengerPlanScreen() {
           delivery_lat: dropoff.lat,
           delivery_lng: dropoff.lng,
           package_description: `${option.title} ride`,
-          notes: `${option.title} · ${pickup.title} → ${dropoff.title} · ${route.distanceKm.toFixed(1)} km · pricing:local · match:${prefs.reserveMatch} · tip:${prefs.defaultTipPercent}%`,
+          notes: `${option.title} · ${pickup.title} → ${dropoff.title} · ${route.distanceKm.toFixed(1)} km · pricing:local · match:${prefs.reserveMatch} · tip:${prefs.defaultTipPercent}%${prefs.seniorIdentification ? " · senior:extra-board-time" : ""}${prefs.simpleMode ? " · simple-mode" : ""}`,
           estimated_fee: fare,
           status: "pending",
         })
@@ -305,6 +305,7 @@ export default function PassengerPlanScreen() {
               </Text>
               <Text style={styles.pricingNote}>
                 {reserveSubtitle(prefs.reserveMatch)}
+                {prefs.seniorIdentification ? " · Extra boarding time" : ""}
               </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>

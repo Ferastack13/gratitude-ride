@@ -5,6 +5,7 @@ import {
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
 import type { FontScale } from "@/lib/settings";
+import { router } from "expo-router";
 import { Linking, Text } from "react-native";
 
 const SCALES: { value: FontScale; title: string; body: string }[] = [
@@ -45,11 +46,14 @@ export default function AccessibilityScreen() {
       />
       <ToggleRow
         title="Simple mode"
-        subtitle="A calmer layout for older adults. Saved on this device."
+        subtitle="Open the full Simple Mode screen for seniors."
         value={settings.simpleMode}
         palette={palette}
         last
-        onValueChange={(v) => update({ simpleMode: v })}
+        onValueChange={(v) => {
+          update({ simpleMode: v });
+          if (v) router.push("/passenger/simple-mode" as never);
+        }}
       />
       <Text
         onPress={() => Linking.openSettings()}

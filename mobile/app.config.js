@@ -11,6 +11,8 @@ module.exports = ({ config }) => {
       "ACCESS_COARSE_LOCATION",
       "ACCESS_FINE_LOCATION",
       "FOREGROUND_SERVICE",
+      "READ_CONTACTS",
+      "WRITE_CONTACTS",
     ],
   };
 
@@ -29,6 +31,8 @@ module.exports = ({ config }) => {
         "Gratitude Ride uses your location to show a live map and match nearby couriers.",
       NSLocationAlwaysAndWhenInUseUsageDescription:
         "Gratitude Ride uses your location to show a live map and match nearby couriers.",
+      NSContactsUsageDescription:
+        "Gratitude Ride uses contact information to share trip status and to send pick-up and drop-off notifications.",
     },
   };
 
@@ -53,6 +57,13 @@ module.exports = ({ config }) => {
         {
           locationWhenInUsePermission:
             "Allow Gratitude Ride to use your location for live map delivery booking.",
+        },
+      ],
+      [
+        "expo-contacts",
+        {
+          contactsPermission:
+            "Allow Gratitude Ride to access contacts so you can share trip status and send pick-up and drop-off notifications.",
         },
       ],
       ...(googleMapsApiKey

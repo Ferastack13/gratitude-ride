@@ -193,7 +193,7 @@ export default function PassengerAccountScreen() {
             icon="book-outline"
             title="Contacts"
             subtitle="Manage all your contacts at Gratitude app"
-            onPress={() => soon("Contacts")}
+            onPress={() => router.push("/passenger/contacts" as never)}
           />
           {!simpleMode ? (
             <>

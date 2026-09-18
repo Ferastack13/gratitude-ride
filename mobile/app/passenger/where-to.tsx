@@ -1,7 +1,7 @@
 import { LocationRow } from "@/components/passenger/LocationRow";
 import { colors, radii } from "@/constants/theme";
 import { resolveCurrentLocation, placeParams } from "@/lib/location";
-import { getRecentPlaces, setSavedPlace } from "@/lib/client-prefs";
+import { getRecentPlaces, setSavedPlace, addShortcut } from "@/lib/client-prefs";
 import { searchLivePlaces, type LivePlace } from "@/lib/places";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -58,12 +58,14 @@ export default function WhereToScreen() {
     focus?: string;
     serviceId?: string;
     saveAs?: string;
+    intent?: string;
   }>();
 
   const saveAs: SaveAs | null =
     params.saveAs === "home" || params.saveAs === "work"
       ? params.saveAs
       : null;
+  const saveOnly = params.intent === "save" || params.intent === "shortcut";
 
   const [pickup, setPickup] = useState<LivePlace | null>(() =>
     parsePlaceFromParams(
@@ -178,8 +180,17 @@ export default function WhereToScreen() {
   };
 
   const onSelect = async (place: LivePlace) => {
+    if (params.intent === "shortcut") {
+      await addShortcut(place);
+      router.back();
+      return;
+    }
     if (saveAs) {
       await setSavedPlace(saveAs, place);
+      if (saveOnly) {
+        router.back();
+        return;
+      }
       setDropoff(place);
       setQuery("");
       setResults([]);
@@ -225,14 +236,16 @@ export default function WhereToScreen() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>
-              {saveAs === "home"
-                ? "Set Home"
-                : saveAs === "work"
-                  ? "Set Work"
-                  : "Plan your trip"}
+              {params.intent === "shortcut"
+                ? "Add shortcut"
+                : saveAs === "home"
+                  ? "Set Home"
+                  : saveAs === "work"
+                    ? "Set Work"
+                    : "Plan your trip"}
             </Text>
             <Text style={styles.subtitle}>
-              {saveAs
+              {params.intent === "shortcut" || saveAs
                 ? "Search and choose an address to save"
                 : "Pickup → Destination"}
             </Text>

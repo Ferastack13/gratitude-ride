@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { pushRecentPlace } from "@/lib/client-prefs";
+import { getAppSettings, reserveSubtitle, type AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { createTrackingId, ensureClientId } from "@/lib/deliveries";
 import { formatCurrency } from "@/lib/format";
 import { placeParams, resolveCurrentLocation } from "@/lib/location";
@@ -92,6 +93,11 @@ export default function PassengerPlanScreen() {
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routing, setRouting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [prefs, setPrefs] = useState<AppSettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    getAppSettings().then(setPrefs).catch(() => undefined);
+  }, []);
 
   const option = useMemo(() => rideOptionById(rideId), [rideId]);
 
@@ -114,6 +120,7 @@ export default function PassengerPlanScreen() {
   }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng]);
 
   const fare = route ? quoteRideFare(route.distanceKm, option) : 0;
+  const tip = Math.round(fare * (prefs.defaultTipPercent / 100));
   const driveMin = route?.durationMin ?? 0;
   const pickupEta = route ? quotePickupEtaMin(driveMin, option) : 0;
 
@@ -156,7 +163,7 @@ export default function PassengerPlanScreen() {
           delivery_lat: dropoff.lat,
           delivery_lng: dropoff.lng,
           package_description: `${option.title} ride`,
-          notes: `${option.title} · ${pickup.title} → ${dropoff.title} · ${route.distanceKm.toFixed(1)} km · pricing:local`,
+          notes: `${option.title} · ${pickup.title} → ${dropoff.title} · ${route.distanceKm.toFixed(1)} km · pricing:local · match:${prefs.reserveMatch} · tip:${prefs.defaultTipPercent}%`,
           estimated_fee: fare,
           status: "pending",
         })
@@ -290,7 +297,15 @@ export default function PassengerPlanScreen() {
               <Text style={styles.summaryFare}>
                 {routing ? "…" : formatCurrency(fare)}
               </Text>
-              <Text style={styles.pricingNote}>Local quote · {option.title}</Text>
+              <Text style={styles.pricingNote}>
+                Local quote · {option.title}
+                {prefs.defaultTipPercent > 0
+                  ? ` · ${prefs.defaultTipPercent}% tip ${formatCurrency(tip)}`
+                  : ""}
+              </Text>
+              <Text style={styles.pricingNote}>
+                {reserveSubtitle(prefs.reserveMatch)}
+              </Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
               <Text style={styles.summaryLabel}>Pickup ETA</Text>

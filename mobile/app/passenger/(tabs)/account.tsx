@@ -101,7 +101,7 @@ export default function PassengerAccountScreen() {
               styles.avatar,
               pressed && { opacity: 0.85 },
             ]}
-            onPress={() => soon("Profile")}
+            onPress={() => router.push("/passenger/settings/profile" as never)}
           >
             <Text style={styles.avatarText}>
               {name.charAt(0).toUpperCase()}
@@ -163,14 +163,14 @@ export default function PassengerAccountScreen() {
           <Row
             icon="settings-outline"
             title="Settings"
-            onPress={() => soon("Settings")}
+            onPress={() => router.push("/passenger/settings" as never)}
           />
           <Row
             icon="phone-portrait-outline"
             title="Simple mode"
             subtitle="A simplified app for older adults"
             badge="NEW"
-            onPress={() => soon("Simple mode")}
+            onPress={() => router.push("/passenger/settings/accessibility" as never)}
           />
           <Row
             icon="book-outline"

@@ -1,6 +1,8 @@
 import type { LivePlace } from "@/lib/places";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export type ShortcutPlace = LivePlace & { nickname?: string };
+
 const KEYS = {
   home: "gr.saved.home",
   work: "gr.saved.work",
@@ -10,6 +12,7 @@ const KEYS = {
   vouchers: "gr.wallet.vouchers",
   promos: "gr.wallet.promos",
   safety: "gr.safety.prefs",
+  shortcuts: "gr.saved.shortcuts",
 } as const;
 
 export type PaymentMethod = "cash" | "transfer";
@@ -225,5 +228,32 @@ export async function setSafetyPrefs(
         : current.emergencyContacts,
   };
   await AsyncStorage.setItem(KEYS.safety, JSON.stringify(next));
+  return next;
+}
+
+export async function getShortcuts(): Promise<ShortcutPlace[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.shortcuts);
+    if (!raw) return [];
+    const list = JSON.parse(raw) as ShortcutPlace[];
+    return Array.isArray(list) ? list.slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function addShortcut(place: ShortcutPlace) {
+  const prev = await getShortcuts();
+  const next = [
+    place,
+    ...prev.filter((p) => p.id !== place.id),
+  ].slice(0, 12);
+  await AsyncStorage.setItem(KEYS.shortcuts, JSON.stringify(next));
+  return next;
+}
+
+export async function removeShortcut(id: string) {
+  const next = (await getShortcuts()).filter((p) => p.id !== id);
+  await AsyncStorage.setItem(KEYS.shortcuts, JSON.stringify(next));
   return next;
 }

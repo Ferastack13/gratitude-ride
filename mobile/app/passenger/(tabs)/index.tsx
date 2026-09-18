@@ -3,6 +3,7 @@ import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { colors, radii, shadows, typography } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { getRecentPlaces, getSavedPlaces, type SavedPlaces } from "@/lib/client-prefs";
+import { commutePromptNow, getAppSettings } from "@/lib/settings";
 import {
   formatCurrency,
   formatStatus,
@@ -46,6 +47,9 @@ export default function PassengerHomeScreen() {
   const [pickup, setPickup] = useState<LivePlace | null>(null);
   const [locating, setLocating] = useState(true);
   const [locMessage, setLocMessage] = useState<string | null>(null);
+  const [commuteNudge, setCommuteNudge] = useState<"morning" | "evening" | null>(
+    null
+  );
   const [recent, setRecent] = useState<LivePlace[]>([]);
   const [saved, setSaved] = useState<SavedPlaces>({ home: null, work: null });
   const [active, setActive] = useState<{
@@ -80,6 +84,9 @@ export default function PassengerHomeScreen() {
     useCallback(() => {
       getSavedPlaces().then(setSaved).catch(() => undefined);
       getRecentPlaces().then(setRecent).catch(() => undefined);
+      getAppSettings()
+        .then((s) => setCommuteNudge(commutePromptNow(s)))
+        .catch(() => undefined);
     }, [])
   );
 
@@ -329,6 +336,23 @@ export default function PassengerHomeScreen() {
             </View>
             <Text style={styles.edit}>{pickup ? "Edit" : "Set"}</Text>
           </Pressable>
+
+          {commuteNudge ? (
+            <Pressable
+              style={styles.permBanner}
+              onPress={() => openWhereTo("dropoff")}
+            >
+              <Text style={styles.permTitle}>
+                {commuteNudge === "morning"
+                  ? "Morning commute"
+                  : "Evening commute"}
+              </Text>
+              <Text style={styles.permBody}>
+                It’s around your usual leave time. Request a ride now.
+              </Text>
+              <Text style={styles.permAction}>Where to?</Text>
+            </Pressable>
+          ) : null}
 
           {locMessage && !pickup ? (
             <Pressable style={styles.permBanner} onPress={refreshLocation}>

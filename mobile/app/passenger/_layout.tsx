@@ -43,6 +43,7 @@ export default function PassengerLayout() {
       <Stack.Screen name="wallet" />
       <Stack.Screen name="inbox" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="family" />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="safety" options={{ animation: "slide_from_bottom" }} />
       <Stack.Screen name="safety-ride-check" />
       <Stack.Screen name="safety-tips" />

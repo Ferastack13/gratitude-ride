@@ -103,10 +103,15 @@ async function ensureForegroundPermission(
 }
 
 async function readGps(label: string) {
-  const pos = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.BestForNavigation,
-    mayShowUserSettingsDialog: true,
-  });
+  const pos = await Promise.race([
+    Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+      mayShowUserSettingsDialog: true,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("gps-timeout")), 10_000)
+    ),
+  ]);
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   LOG(label, {

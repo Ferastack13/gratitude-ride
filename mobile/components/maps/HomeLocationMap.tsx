@@ -119,29 +119,21 @@ export function HomeLocationMap({
     { height },
   ];
 
-  if (loading && !coords) {
-    return (
-      <View style={shellStyle}>
-        <View style={styles.state}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.stateTitle}>Finding your location…</Text>
-          <Text style={styles.stateSub}>
-            We’ll center the map on where you are now.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   if (!coords || !viewCenter) {
     return (
       <View style={shellStyle}>
         <View style={styles.state}>
-          <Ionicons name="location-outline" size={28} color={colors.muted} />
-          <Text style={styles.stateTitle}>Location unavailable</Text>
+          {loading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Ionicons name="location-outline" size={28} color={colors.muted} />
+          )}
+          <Text style={styles.stateTitle}>
+            {loading ? "Finding your location…" : "Turn on location"}
+          </Text>
           <Text style={styles.stateSub}>
             {errorMessage ??
-              "Enable location to see yourself on the map."}
+              "Allow location so we can put you on the map and set pickup."}
           </Text>
           {onRequestLocation ? (
             <Pressable

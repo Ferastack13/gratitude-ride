@@ -152,7 +152,7 @@ export function LivePlaceSearch({
               </View>
               {query.trim().length >= 2 ? resultsList : (
                 <Text style={styles.error}>
-                  Type any street, area, or landmark in Nigeria
+                  Type a state, city, town, or street anywhere in Nigeria
                 </Text>
               )}
             </View>

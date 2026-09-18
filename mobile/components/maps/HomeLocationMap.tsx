@@ -151,7 +151,7 @@ export function HomeLocationMap({
               ]}
               onPress={onRequestLocation}
             >
-              <Text style={styles.retryText}>Try again</Text>
+              <Text style={styles.retryText}>Turn on location</Text>
             </Pressable>
           ) : null}
         </View>

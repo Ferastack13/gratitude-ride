@@ -334,7 +334,7 @@ export default function PassengerHomeScreen() {
             <Pressable style={styles.permBanner} onPress={refreshLocation}>
               <Text style={styles.permTitle}>Location needed</Text>
               <Text style={styles.permBody}>{locMessage}</Text>
-              <Text style={styles.permAction}>Try again</Text>
+              <Text style={styles.permAction}>Turn on location</Text>
             </Pressable>
           ) : null}
 

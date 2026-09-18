@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { distanceKm } from "@/lib/geo";
 import { reverseLivePlace, type LivePlace } from "@/lib/places";
-import { Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 
 export type LocationPermission = "granted" | "denied" | "undetermined";
 
@@ -65,16 +65,40 @@ async function reverseWithTimeout(
   }
 }
 
-async function ensureForegroundPermission(): Promise<LocationPermission> {
+function promptEnableInSettings(message: string) {
+  Alert.alert("Turn on location", message, [
+    { text: "Not now", style: "cancel" },
+    {
+      text: "Open Settings",
+      onPress: () => {
+        Linking.openSettings().catch(() => undefined);
+      },
+    },
+  ]);
+}
+
+/** Always shows the system location dialog when possible. */
+async function ensureForegroundPermission(
+  showAlerts = true
+): Promise<LocationPermission> {
   const current = await Location.getForegroundPermissionsAsync();
   let status = current.status;
-  LOG("permission:current", status);
-  if (status === "undetermined") {
+  LOG("permission:current", status, { canAskAgain: current.canAskAgain });
+
+  if (status !== "granted") {
     const asked = await Location.requestForegroundPermissionsAsync();
     status = asked.status;
-    LOG("permission:requested", status);
+    LOG("permission:requested", status, { canAskAgain: asked.canAskAgain });
   }
+
   if (status === "granted") return "granted";
+
+  if (showAlerts) {
+    promptEnableInSettings(
+      "Gratitude Ride needs your location to show you on the map and set pickup. Tap Open Settings, allow Location, then return to the app."
+    );
+  }
+
   return status === "denied" ? "denied" : "undetermined";
 }
 
@@ -97,7 +121,7 @@ async function readGps(label: string) {
 /** Request permission and resolve the device GPS into a readable place. Never invents a city. */
 export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
   try {
-    const permission = await ensureForegroundPermission();
+    const permission = await ensureForegroundPermission(true);
 
     if (permission !== "granted") {
       return {
@@ -105,8 +129,25 @@ export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
         permission,
         reason: "permission",
         message:
-          "Location permission is off. Enable it to use your current position, or search for pickup manually.",
+          "Location is off. Tap Turn on location, allow access, then come back.",
       };
+    }
+
+    const servicesOn = await Location.hasServicesEnabledAsync();
+    if (!servicesOn) {
+      if (Platform.OS === "android") {
+        try {
+          await Location.enableNetworkProviderAsync();
+        } catch {
+          promptEnableInSettings(
+            "Location services are turned off on this phone. Enable GPS, then return to Gratitude Ride."
+          );
+        }
+      } else {
+        promptEnableInSettings(
+          "Location services are turned off on this phone. Enable GPS, then return to Gratitude Ride."
+        );
+      }
     }
 
     const coords = await readGps("resolveCurrentLocation");
@@ -144,22 +185,37 @@ export async function startDeviceLocationWatch(
   handlers: DeviceLocationWatchHandlers
 ): Promise<{ stop: () => void } | { error: string }> {
   LOG("watch:start", { platform: Platform.OS });
-  const permission = await ensureForegroundPermission();
+  const permission = await ensureForegroundPermission(true);
   if (permission !== "granted") {
     LOG("watch:permission-denied", permission);
     return {
       error:
-        "Location permission is off. Enable it to use your current position, or search for pickup manually.",
+        "Location is off. Tap Turn on location, allow access, then come back.",
     };
   }
 
   const servicesOn = await Location.hasServicesEnabledAsync();
   LOG("watch:servicesEnabled", servicesOn);
   if (!servicesOn) {
-    return {
-      error:
-        "Location services are turned off on this phone. Enable GPS and try again.",
-    };
+    if (Platform.OS === "android") {
+      try {
+        await Location.enableNetworkProviderAsync();
+      } catch {
+        promptEnableInSettings(
+          "Location services are turned off on this phone. Enable GPS, then return to Gratitude Ride."
+        );
+        return {
+          error: "Turn on GPS in your phone settings to see yourself on the map.",
+        };
+      }
+    } else {
+      promptEnableInSettings(
+        "Location services are turned off on this phone. Enable GPS, then return to Gratitude Ride."
+      );
+      return {
+        error: "Turn on GPS in your phone settings to see yourself on the map.",
+      };
+    }
   }
 
   if (Platform.OS === "android") {

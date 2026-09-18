@@ -605,6 +605,7 @@ export default function ClientHomeScreen() {
             <LivePlaceSearch
               label="Drop-off street or area"
               placeholder="e.g. Lekki Phase 1, Wuse 2, Ring Road…"
+              near={pickup}
               onSelect={onWhereSelect}
             />
           </View>
@@ -624,6 +625,7 @@ export default function ClientHomeScreen() {
               label="Pickup street or area"
               placeholder="Search pickup location…"
               value={pickup}
+              near={pickup}
               onSelect={(place) => {
                 setPickup(place);
                 setPickupEditOpen(false);

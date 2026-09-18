@@ -489,6 +489,7 @@ export default function BookScreen() {
               label={editTarget === "pickup" ? "Pickup" : "Drop-off"}
               placeholder="Search any street or area…"
               value={editTarget === "pickup" ? pickup : dropoff}
+              near={pickup}
               onSelect={(place) => {
                 if (editTarget === "pickup") setPickup(place);
                 else setDropoff(place);

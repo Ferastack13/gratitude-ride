@@ -140,6 +140,78 @@ function searchNigeriaGazetteer(query: string): LivePlace[] {
   return out.slice(0, 10);
 }
 
+const NIGERIA_BBOX = "2.67,4.27,14.68,13.89";
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    osm_id?: number;
+    osm_type?: string;
+    osm_key?: string;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    district?: string;
+    locality?: string;
+    city?: string;
+    county?: string;
+    state?: string;
+    countrycode?: string;
+    type?: string;
+  };
+};
+
+function nigeriaQuery(query: string) {
+  const q = query.trim();
+  return /nigeria/i.test(q) ? q : `${q}, Nigeria`;
+}
+
+async function searchPhoton(
+  query: string,
+  near?: { lat: number; lng: number } | null
+): Promise<LivePlace[]> {
+  const params = new URLSearchParams({
+    q: query,
+    limit: "12",
+    lang: "en",
+    bbox: NIGERIA_BBOX,
+  });
+  if (near && Number.isFinite(near.lat) && Number.isFinite(near.lng)) {
+    params.set("lat", String(near.lat));
+    params.set("lon", String(near.lng));
+  }
+
+  const res = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { features?: PhotonFeature[] };
+  const out: LivePlace[] = [];
+
+  for (const f of data.features ?? []) {
+    const p = f.properties ?? {};
+    const coords = f.geometry?.coordinates;
+    if (!coords || coords.length < 2) continue;
+    if (p.countrycode && p.countrycode.toUpperCase() !== "NG") continue;
+
+    const street = [p.housenumber, p.street || p.name].filter(Boolean).join(" ");
+    const city = p.city || p.locality || p.district || p.county;
+    const title = street || p.name || city || "Location";
+    const subtitle = [p.district, city, p.state].filter(Boolean).join(", ") || "Nigeria";
+    out.push({
+      id: `ph-${p.osm_type ?? "n"}-${p.osm_id ?? `${coords[1]}-${coords[0]}`}`,
+      title,
+      subtitle,
+      address: [title, subtitle, "Nigeria"].filter(Boolean).join(", "),
+      lat: coords[1],
+      lng: coords[0],
+      city,
+      state: p.state,
+    });
+  }
+  return out;
+}
+
 async function searchNominatim(query: string): Promise<LivePlace[]> {
   const url =
     "https://nominatim.openstreetmap.org/search?" +
@@ -148,7 +220,7 @@ async function searchNominatim(query: string): Promise<LivePlace[]> {
       addressdetails: "1",
       limit: "12",
       countrycodes: "ng",
-      q: query,
+      q: nigeriaQuery(query),
     }).toString();
 
   const res = await fetch(url, {
@@ -247,16 +319,20 @@ function dedupePlaces(list: LivePlace[]): LivePlace[] {
 }
 
 /** Live search any state, city, town, street or landmark in Nigeria */
-export async function searchLivePlaces(query: string): Promise<LivePlace[]> {
+export async function searchLivePlaces(
+  query: string,
+  near?: { lat: number; lng: number } | null
+): Promise<LivePlace[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
   const local = searchNigeriaGazetteer(q);
-  const [google, osm] = await Promise.all([
+  const [streets, google, osm] = await Promise.all([
+    searchPhoton(q, near).catch(() => [] as LivePlace[]),
     searchGooglePlaces(q).catch(() => [] as LivePlace[]),
     searchNominatim(q).catch(() => [] as LivePlace[]),
   ]);
-  return dedupePlaces([...local, ...google, ...osm]).slice(0, 16);
+  return dedupePlaces([...streets, ...google, ...local, ...osm]).slice(0, 16);
 }
 
 /** Reverse geocode live GPS into a readable place */

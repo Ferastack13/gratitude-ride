@@ -20,6 +20,8 @@ type Props = {
   onSelect: (place: LivePlace) => void;
   /** Compact single-line field (e.g. top search bar) */
   compact?: boolean;
+  /** Bias street results toward this point (usually current GPS / pickup). */
+  near?: { lat: number; lng: number } | null;
 };
 
 export function LivePlaceSearch({
@@ -28,6 +30,7 @@ export function LivePlaceSearch({
   value,
   onSelect,
   compact = false,
+  near,
 }: Props) {
   const [query, setQuery] = useState(value?.title ?? "");
   const [results, setResults] = useState<LivePlace[]>([]);
@@ -56,7 +59,7 @@ export function LivePlaceSearch({
     setError(null);
     const timer = setTimeout(async () => {
       try {
-        const places = await searchLivePlaces(q);
+        const places = await searchLivePlaces(q, near);
         if (id !== seq.current) return;
         setResults(places);
         if (!places.length) setError("No places found — try another street or area");
@@ -70,7 +73,7 @@ export function LivePlaceSearch({
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, near?.lat, near?.lng]);
 
   const pick = (place: LivePlace) => {
     setQuery(place.title);

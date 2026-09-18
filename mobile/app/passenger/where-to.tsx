@@ -132,7 +132,10 @@ export default function WhereToScreen() {
     setError(null);
     const timer = setTimeout(async () => {
       try {
-        const places = await searchLivePlaces(q);
+        const places = await searchLivePlaces(
+          q,
+          pickup ? { lat: pickup.lat, lng: pickup.lng } : null
+        );
         if (id !== seq.current) return;
         setResults(places);
         if (!places.length) setError("No places found — try another search");
@@ -145,7 +148,7 @@ export default function WhereToScreen() {
       }
     }, 350);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, pickup?.lat, pickup?.lng]);
 
   const useCurrentLocation = useCallback(async () => {
     setLocating(true);

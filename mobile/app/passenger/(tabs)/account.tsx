@@ -158,7 +158,7 @@ export default function PassengerAccountScreen() {
             icon="people-outline"
             title="Family"
             subtitle="Manage adult and senior accounts"
-            onPress={() => soon("Family")}
+            onPress={() => router.push("/passenger/family" as never)}
           />
           <Row
             icon="settings-outline"

@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function RegisterScreen() {
-  const params = useLocalSearchParams<{ accountType?: string }>();
+  const params = useLocalSearchParams<{ accountType?: string; familyCode?: string }>();
   const accountType = (
     params.accountType === "driver" ||
     params.accountType === "passenger" ||
@@ -31,6 +31,9 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [vehicleType, setVehicleType] = useState("Car");
+  const [familyCode, setFamilyCode] = useState(
+    (params.familyCode ?? "").toString().toUpperCase()
+  );
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,6 +41,15 @@ export default function RegisterScreen() {
   useEffect(() => {
     setAccountType(accountType).catch(() => undefined);
   }, [accountType]);
+
+  useEffect(() => {
+    const code = (params.familyCode ?? "").toString().trim().toUpperCase();
+    if (!code) return;
+    setFamilyCode(code);
+    import("@/lib/family").then(({ stashPendingFamilyCode }) =>
+      stashPendingFamilyCode(code).catch(() => undefined)
+    );
+  }, [params.familyCode]);
 
   const onSubmit = async () => {
     setError(null);
@@ -53,6 +65,10 @@ export default function RegisterScreen() {
 
     setLoading(true);
     await setAccountType(accountType);
+    if (familyCode.trim()) {
+      const { stashPendingFamilyCode } = await import("@/lib/family");
+      await stashPendingFamilyCode(familyCode);
+    }
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -130,6 +146,13 @@ export default function RegisterScreen() {
           onChangeText={setVehicleType}
         />
       ) : null}
+      <Input
+        label="Family invite code (optional)"
+        autoCapitalize="characters"
+        placeholder="GR7K2P"
+        value={familyCode}
+        onChangeText={(t) => setFamilyCode(t.toUpperCase())}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {message ? <Text style={styles.success}>{message}</Text> : null}

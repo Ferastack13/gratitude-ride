@@ -27,6 +27,7 @@ export default function RootLayout() {
         <Stack.Screen name="client" />
         <Stack.Screen name="rider" />
         <Stack.Screen name="passenger" />
+        <Stack.Screen name="family" />
         <Stack.Screen name="business" />
       </Stack>
     </AuthProvider>

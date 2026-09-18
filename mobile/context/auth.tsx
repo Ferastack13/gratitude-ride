@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         hydrateAccountType(next),
       ]);
       setProfile(p);
+      const { consumePendingFamilyInvite } = await import("@/lib/family");
+      consumePendingFamilyInvite().catch(() => undefined);
     },
     [hydrateAccountType]
   );

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function LoginScreen() {
-  const params = useLocalSearchParams<{ error?: string }>();
+  const params = useLocalSearchParams<{ error?: string; familyCode?: string }>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +19,14 @@ export default function LoginScreen() {
     if (!params.error) return;
     setError(params.error);
   }, [params.error]);
+
+  useEffect(() => {
+    const code = (params.familyCode ?? "").toString().trim().toUpperCase();
+    if (!code) return;
+    import("@/lib/family").then(({ stashPendingFamilyCode }) =>
+      stashPendingFamilyCode(code).catch(() => undefined)
+    );
+  }, [params.familyCode]);
 
   const onSubmit = async () => {
     setError(null);
@@ -69,6 +77,10 @@ export default function LoginScreen() {
 
       <Link href="/forgot-password" style={styles.link}>
         Forgot password?
+      </Link>
+
+      <Link href={"/family/join" as never} style={styles.link}>
+        I have a family invite
       </Link>
 
       <View style={styles.row}>

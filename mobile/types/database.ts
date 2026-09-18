@@ -484,6 +484,60 @@ export type Database = {
         }
         Relationships: []
       }
+      family_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          code: string
+          created_at: string
+          id: string
+          invitee_name: string
+          invitee_phone: string | null
+          inviter_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          invitee_name: string
+          invitee_phone?: string | null
+          inviter_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          invitee_name?: string
+          invitee_phone?: string | null
+          inviter_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invites_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "family_invites_inviter_id_fkey"
+            columns: ["inviter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracking: {
         Row: {
           created_at: string
@@ -560,6 +614,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_family_invite: { Args: { p_code: string }; Returns: Json }
+      peek_family_invite: {
+        Args: { p_code: string }
+        Returns: {
+          invitee_name: string
+          inviter_name: string
+          status: string
+        }[]
+      }
       generate_tracking_id: { Args: never; Returns: string }
       get_delivery_by_tracking: {
         Args: { p_tracking_id: string }

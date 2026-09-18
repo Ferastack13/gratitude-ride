@@ -1,20 +1,11 @@
-import { OsmRasterMap } from "@/components/maps/OsmRasterMap";
 import { colors, radii, shadows } from "@/constants/theme";
-import {
-  latToWorldY,
-  lngToWorldX,
-  worldToLatLng,
-} from "@/lib/osm-tiles";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import MapView, {
+  PROVIDER_GOOGLE,
+  type Region,
+} from "react-native-maps";
 
 type Coords = { lat: number; lng: number };
 
@@ -30,13 +21,27 @@ type Props = {
   controlsTop?: boolean;
 };
 
-const MIN_ZOOM = 13;
-const MAX_ZOOM = 18;
-const DEFAULT_ZOOM = 16;
+const NIGERIA: Region = {
+  latitude: 9.082,
+  longitude: 8.6753,
+  latitudeDelta: 10,
+  longitudeDelta: 10,
+};
+
+const STREET_DELTA = 0.006;
+
+function regionFrom(coords: Coords, delta: number): Region {
+  return {
+    latitude: coords.lat,
+    longitude: coords.lng,
+    latitudeDelta: delta,
+    longitudeDelta: delta,
+  };
+}
 
 /**
- * Home “You are here” map — real GPS + OSM/Carto raster tiles.
- * Root cause of blank map: staticmap.openstreetmap.de is discontinued (NXDOMAIN).
+ * Home live map — native MapView (Google on Android, Apple on iOS)
+ * plus the device blue “you are here” puck. GPS does not need a Google key.
  */
 export function HomeLocationMap({
   coords,
@@ -47,146 +52,103 @@ export function HomeLocationMap({
   flush = false,
   controlsTop = false,
 }: Props) {
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [viewCenter, setViewCenter] = useState<Coords | null>(coords);
-  const [drag, setDrag] = useState({ x: 0, y: 0 });
-  const baseRef = useRef<Coords | null>(coords);
-  const viewRef = useRef<Coords | null>(coords);
-  const zoomRef = useRef(DEFAULT_ZOOM);
-  const panStart = useRef<Coords | null>(null);
-  const sizeRef = useRef({ w: 0, h: height });
+  const mapRef = useRef<MapView>(null);
+  const didCenter = useRef(false);
+  const [delta, setDelta] = useState(STREET_DELTA);
 
   useEffect(() => {
-    zoomRef.current = zoom;
-  }, [zoom]);
-
-  useEffect(() => {
-    if (!coords) return;
-    console.log("[GR-GPS] Map:coords→marker", {
-      lat: Number(coords.lat.toFixed(6)),
-      lng: Number(coords.lng.toFixed(6)),
-    });
-    baseRef.current = coords;
-    viewRef.current = coords;
-    setViewCenter(coords);
-    setDrag({ x: 0, y: 0 });
-  }, [coords?.lat, coords?.lng]);
+    if (!coords) {
+      didCenter.current = false;
+      return;
+    }
+    const region = regionFrom(coords, delta);
+    if (!didCenter.current) {
+      didCenter.current = true;
+      mapRef.current?.animateToRegion(region, 500);
+      return;
+    }
+  }, [coords?.lat, coords?.lng, delta]);
 
   const recenter = useCallback(() => {
-    if (baseRef.current) {
-      viewRef.current = baseRef.current;
-      setViewCenter(baseRef.current);
-      setDrag({ x: 0, y: 0 });
+    if (coords) {
+      mapRef.current?.animateToRegion(regionFrom(coords, delta), 400);
     }
     onRequestLocation?.();
-  }, [onRequestLocation]);
+  }, [coords, delta, onRequestLocation]);
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_, g) =>
-          Math.abs(g.dx) > 6 || Math.abs(g.dy) > 6,
-        onPanResponderGrant: () => {
-          panStart.current = viewRef.current;
-          setDrag({ x: 0, y: 0 });
-        },
-        onPanResponderMove: (_, g) => {
-          setDrag({ x: g.dx, y: g.dy });
-        },
-        onPanResponderRelease: (_, g) => {
-          const start = panStart.current;
-          if (!start || sizeRef.current.w <= 0) {
-            setDrag({ x: 0, y: 0 });
-            return;
-          }
-          const z = zoomRef.current;
-          const cx = lngToWorldX(start.lng, z) - g.dx;
-          const cy = latToWorldY(start.lat, z) - g.dy;
-          const next = worldToLatLng(cx, cy, z);
-          viewRef.current = next;
-          setViewCenter(next);
-          setDrag({ x: 0, y: 0 });
-        },
-        onPanResponderTerminate: () => setDrag({ x: 0, y: 0 }),
-      }),
-    []
-  );
+  const zoomBy = (factor: number) => {
+    setDelta((d) => {
+      const next = Math.min(0.2, Math.max(0.0015, d * factor));
+      if (coords) {
+        mapRef.current?.animateToRegion(regionFrom(coords, next), 200);
+      }
+      return next;
+    });
+  };
 
   const shellStyle = [
     styles.shell,
     flush && styles.shellFlush,
     { height },
+    Platform.OS === "android" && styles.shellAndroid,
   ];
-
-  if (!coords || !viewCenter) {
-    return (
-      <View style={shellStyle}>
-        <View style={styles.state}>
-          {loading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <Ionicons name="location-outline" size={28} color={colors.muted} />
-          )}
-          <Text style={styles.stateTitle}>
-            {loading ? "Finding your location…" : "Turn on location"}
-          </Text>
-          <Text style={styles.stateSub}>
-            {errorMessage ??
-              "Allow location so we can put you on the map and set pickup."}
-          </Text>
-          {onRequestLocation ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.retry,
-                pressed && { opacity: 0.85 },
-              ]}
-              onPress={onRequestLocation}
-            >
-              <Text style={styles.retryText}>Turn on location</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={shellStyle} collapsable={false}>
-      <View style={styles.mapTouch} {...panResponder.panHandlers}>
-        <OsmRasterMap
-          center={viewCenter}
-          zoom={zoom}
-          height={height}
-          dragOffset={drag}
-          markers={[{ lat: coords.lat, lng: coords.lng, color: colors.primary }]}
-          onLayoutSize={(s) => {
-            sizeRef.current = s;
-          }}
-        />
-      </View>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+        initialRegion={coords ? regionFrom(coords, STREET_DELTA) : NIGERIA}
+        showsUserLocation={Boolean(coords)}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        toolbarEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        loadingEnabled
+        loadingIndicatorColor={colors.primary}
+        mapType="standard"
+      />
 
-      <View
-        style={[styles.badge, flush && styles.badgeFlush]}
-        pointerEvents="none"
-      >
-        <View style={styles.dot} />
-        <Text style={styles.badgeText}>You are here</Text>
-      </View>
+      {!coords ? (
+        <View style={styles.cover} pointerEvents="box-none">
+          <View style={styles.card}>
+            <Ionicons name="locate" size={22} color={colors.primary} />
+            <Text style={styles.stateTitle}>
+              {loading ? "Finding your location…" : "Turn on location"}
+            </Text>
+            <Text style={styles.stateSub}>
+              {errorMessage ??
+                "Allow location so we can put you on the map and set pickup."}
+            </Text>
+            {onRequestLocation ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.retry,
+                  pressed && { opacity: 0.85 },
+                ]}
+                onPress={onRequestLocation}
+              >
+                <Text style={styles.retryText}>Turn on location</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : (
+        <View
+          style={[styles.badge, flush && styles.badgeFlush]}
+          pointerEvents="none"
+        >
+          <View style={styles.dot} />
+          <Text style={styles.badgeText}>You are here · live</Text>
+        </View>
+      )}
 
-      <Text
-        style={[styles.attrib, flush && styles.attribFlush]}
-        pointerEvents="none"
-      >
-        © OSM · CARTO
-      </Text>
-
-      <View
-        style={[styles.controls, controlsTop && styles.controlsTop]}
-      >
+      <View style={[styles.controls, controlsTop && styles.controlsTop]}>
         <Pressable
           style={({ pressed }) => [styles.ctrlBtn, pressed && { opacity: 0.8 }]}
-          onPress={() => setZoom((z) => Math.min(MAX_ZOOM, z + 1))}
+          onPress={() => zoomBy(0.5)}
           accessibilityLabel="Zoom in"
           hitSlop={8}
         >
@@ -194,7 +156,7 @@ export function HomeLocationMap({
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.ctrlBtn, pressed && { opacity: 0.8 }]}
-          onPress={() => setZoom((z) => Math.max(MIN_ZOOM, z - 1))}
+          onPress={() => zoomBy(2)}
           accessibilityLabel="Zoom out"
           hitSlop={8}
         >
@@ -217,7 +179,7 @@ const styles = StyleSheet.create({
   shell: {
     borderRadius: radii.lg,
     overflow: "hidden",
-    backgroundColor: "#e8eef2",
+    backgroundColor: "#dbe4ea",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
@@ -225,13 +187,30 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     borderWidth: 0,
   },
-  mapTouch: { flex: 1 },
-  state: {
-    flex: 1,
+  shellAndroid: {
+    overflow: "visible",
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cover: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(247,244,237,0.55)",
     paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    alignItems: "center",
     gap: 8,
+    maxWidth: 320,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    ...shadows.card,
   },
   stateTitle: {
     fontSize: 15,
@@ -247,7 +226,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   retry: {
-    marginTop: 8,
+    marginTop: 4,
     backgroundColor: colors.primary,
     borderRadius: radii.full,
     paddingHorizontal: 16,
@@ -275,26 +254,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: "#1a73e8",
   },
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
     color: colors.dark,
-  },
-  attrib: {
-    position: "absolute",
-    left: 12,
-    top: 10,
-    fontSize: 9,
-    color: colors.muted,
-    backgroundColor: "rgba(255,255,255,0.75)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  attribFlush: {
-    top: 72,
   },
   controls: {
     position: "absolute",

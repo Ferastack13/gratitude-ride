@@ -55,6 +55,17 @@ module.exports = ({ config }) => {
             "Allow Gratitude Ride to use your location for live map delivery booking.",
         },
       ],
+      ...(googleMapsApiKey
+        ? [
+            [
+              "react-native-maps",
+              {
+                androidGoogleMapsApiKey: googleMapsApiKey,
+                iosGoogleMapsApiKey: googleMapsApiKey,
+              },
+            ],
+          ]
+        : []),
     ],
   };
 };

@@ -102,16 +102,7 @@ async function ensureForegroundPermission(
   return status === "denied" ? "denied" : "undetermined";
 }
 
-async function readGps(label: string) {
-  const pos = await Promise.race([
-    Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-      mayShowUserSettingsDialog: true,
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("gps-timeout")), 10_000)
-    ),
-  ]);
+function logFix(label: string, pos: Location.LocationObject) {
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   LOG(label, {
@@ -121,6 +112,28 @@ async function readGps(label: string) {
     mocked: (pos as { mocked?: boolean }).mocked,
   });
   return { lat, lng, accuracy: pos.coords.accuracy ?? null };
+}
+
+async function readLastKnown() {
+  const last = await Location.getLastKnownPositionAsync({
+    maxAge: 5 * 60_000,
+    requiredAccuracy: 2000,
+  });
+  if (!last) return null;
+  return logFix("last-known", last);
+}
+
+async function readGps(label: string) {
+  const pos = await Promise.race([
+    Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+      mayShowUserSettingsDialog: true,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("gps-timeout")), 12_000)
+    ),
+  ]);
+  return logFix(label, pos);
 }
 
 /** Request permission and resolve the device GPS into a readable place. Never invents a city. */
@@ -155,7 +168,8 @@ export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
       }
     }
 
-    const coords = await readGps("resolveCurrentLocation");
+    const coords =
+      (await readLastKnown()) ?? (await readGps("resolveCurrentLocation"));
     const reversed = await reverseWithTimeout(coords.lat, coords.lng);
     const place = placeFromCoords(coords.lat, coords.lng, reversed);
 
@@ -307,8 +321,14 @@ export async function startDeviceLocationWatch(
 
   const handleFix = (lat: number, lng: number, label: string) => {
     emitCoords(lat, lng, label);
-    void maybeReverse(lat, lng, label === "seed");
+    void maybeReverse(lat, lng, label === "seed" || label === "last-known");
   };
+
+  void readLastKnown()
+    .then((gps) => {
+      if (gps) handleFix(gps.lat, gps.lng, "last-known");
+    })
+    .catch(() => undefined);
 
   // A) Native watch (best effort)
   let sub: Location.LocationSubscription | null = null;

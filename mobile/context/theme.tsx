@@ -67,15 +67,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     settings.appearance === "system" ? systemScheme : settings.appearance;
 
   useEffect(() => {
-    try {
-      if (typeof Appearance.setColorScheme === "function") {
-        Appearance.setColorScheme(
-          settings.appearance === "system" ? null : settings.appearance
-        );
-      }
-    } catch {
-      // Expo Go / older runtimes may ignore forced color scheme.
-    }
+    if (typeof Appearance.setColorScheme !== "function") return;
+    // Android's native setColorScheme rejects null. "unspecified" follows the phone.
+    const style =
+      settings.appearance === "system" ? "unspecified" : settings.appearance;
+    Appearance.setColorScheme(style as "light" | "dark");
   }, [settings.appearance]);
 
   const colors = useMemo(

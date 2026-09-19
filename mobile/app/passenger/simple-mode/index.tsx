@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const HERO = require("../../../assets/images/simple-mode-hero.png");
+const HERO = require("../../assets/images/simple-mode-hero.png");
 
 export default function SimpleModeScreen() {
   const insets = useSafeAreaInsets();

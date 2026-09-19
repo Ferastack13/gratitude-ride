@@ -34,7 +34,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const HERO = require("../../../assets/images/family-hero.png");
+const HERO = require("../assets/images/family-hero.png");
 
 const FEATURES = [
   {

@@ -1,4 +1,5 @@
-import { radii, type ThemeColors } from "@/constants/theme";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
@@ -81,7 +82,7 @@ function Row({
 }
 
 export default function PassengerAccountScreen() {
-  const { profile, signOut, setAccountTypePreference } = useAuth();
+  const { profile, signOut, setAccountTypePreference, refreshProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -94,10 +95,11 @@ export default function PassengerAccountScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void refreshProfile();
       getAppSettings()
         .then((s) => setSimpleMode(s.simpleMode))
         .catch(() => undefined);
-    }, [])
+    }, [refreshProfile])
   );
 
   return (
@@ -114,17 +116,12 @@ export default function PassengerAccountScreen() {
               <Text style={styles.rating}>5.00</Text>
             </View>
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.avatar,
-              pressed && { opacity: 0.85 },
-            ]}
+          <ProfileAvatar
+            uri={profile?.avatar_url}
+            name={name}
+            size={64}
             onPress={() => router.push("/passenger/settings/profile" as never)}
-          >
-            <Text style={styles.avatarText}>
-              {name.charAt(0).toUpperCase()}
-            </Text>
-          </Pressable>
+          />
         </View>
 
         <View style={styles.grid}>
@@ -178,6 +175,12 @@ export default function PassengerAccountScreen() {
         </View>
 
         <View style={styles.list}>
+          <Row
+            icon="person-circle-outline"
+            title="Profile"
+            subtitle="Photo, name, phone, and email"
+            onPress={() => router.push("/passenger/settings/profile" as never)}
+          />
           <Row
             icon="people-outline"
             title="Family"
@@ -240,7 +243,8 @@ export default function PassengerAccountScreen() {
           <Row
             icon="person-outline"
             title="Manage Gratitude account"
-            onPress={() => soon("Manage Gratitude account")}
+            subtitle="Create, update, or delete your profile"
+            onPress={() => router.push("/passenger/settings/profile" as never)}
           />
           <Row
             icon="information-circle-outline"
@@ -297,19 +301,6 @@ function makeStyles(colors: ThemeColors) {
     color: colors.dark,
     fontSize: 14,
     fontWeight: "500",
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    color: colors.primary,
-    fontWeight: "700",
-    fontSize: 24,
   },
   grid: {
     flexDirection: "row",

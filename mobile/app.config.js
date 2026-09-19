@@ -13,6 +13,9 @@ module.exports = ({ config }) => {
       "FOREGROUND_SERVICE",
       "READ_CONTACTS",
       "WRITE_CONTACTS",
+      "CAMERA",
+      "READ_MEDIA_IMAGES",
+      "READ_EXTERNAL_STORAGE",
     ],
   };
 
@@ -33,6 +36,10 @@ module.exports = ({ config }) => {
         "Gratitude Ride uses your location to show a live map and match nearby couriers.",
       NSContactsUsageDescription:
         "Gratitude Ride uses contact information to share trip status and to send pick-up and drop-off notifications.",
+      NSCameraUsageDescription:
+        "Gratitude Ride uses the camera so you can take a profile photo.",
+      NSPhotoLibraryUsageDescription:
+        "Gratitude Ride uses your photos so you can set a profile picture.",
     },
   };
 
@@ -64,6 +71,15 @@ module.exports = ({ config }) => {
         {
           contactsPermission:
             "Allow Gratitude Ride to access contacts so you can share trip status and send pick-up and drop-off notifications.",
+        },
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission:
+            "Allow Gratitude Ride to use your photos for a profile picture.",
+          cameraPermission:
+            "Allow Gratitude Ride to use the camera for a profile picture.",
         },
       ],
       ...(googleMapsApiKey

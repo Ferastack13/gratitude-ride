@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import {
   SectionLabel,
   SettingsRow,
@@ -28,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SettingsHomeScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, signOut, setAccountTypePreference } = useAuth();
+  const { profile, signOut, setAccountTypePreference, refreshProfile } = useAuth();
   const { settings, palette, ready } = useSettingsState();
   const { colors, scheme } = useAppTheme();
   const [homeLabel, setHomeLabel] = useState("Add home");
@@ -36,13 +37,14 @@ export default function SettingsHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void refreshProfile();
       getSavedPlaces()
         .then((s) => {
           setHomeLabel(s.home?.title ? s.home.title : "Add home");
           setWorkLabel(s.work?.title ? s.work.title : "Add work");
         })
         .catch(() => undefined);
-    }, [])
+    }, [refreshProfile])
   );
 
   const switchAccount = () => {
@@ -98,15 +100,14 @@ export default function SettingsHomeScreen() {
         contentContainerStyle={{ paddingBottom: 36 + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.pad}>
+          <SectionLabel label="Your profile" palette={palette} />
+        </View>
         <Pressable
           style={({ pressed }) => [styles.profile, pressed && { opacity: 0.85 }]}
           onPress={() => router.push("/passenger/settings/profile" as never)}
         >
-          <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
-              {name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <ProfileAvatar uri={profile?.avatar_url} name={name} size={56} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: palette.text }]}>{name}</Text>
             <Text style={[styles.profileMeta, { color: palette.muted }]}>{phone}</Text>
@@ -115,6 +116,9 @@ export default function SettingsHomeScreen() {
                 {email}
               </Text>
             ) : null}
+            <Text style={[styles.profileMeta, { color: colors.primary, marginTop: 4 }]}>
+              Upload photo · create, update, or delete
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={palette.muted} />
         </Pressable>
@@ -266,17 +270,6 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontWeight: "700",
-    fontSize: 22,
   },
   profileName: { fontSize: 16, fontWeight: "700" },
   profileMeta: { fontSize: 13, marginTop: 2 },

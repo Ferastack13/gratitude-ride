@@ -1,3 +1,4 @@
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { radii, shadows, typography, type ThemeColors } from "@/constants/theme";
@@ -43,7 +44,7 @@ const QUICK_ACCESS = [
 ];
 
 export default function PassengerHomeScreen() {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
@@ -87,6 +88,7 @@ export default function PassengerHomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void refreshProfile();
       getSavedPlaces().then(setSaved).catch(() => undefined);
       getRecentPlaces().then(setRecent).catch(() => undefined);
       getAppSettings()
@@ -95,7 +97,7 @@ export default function PassengerHomeScreen() {
           setSimpleMode(s.simpleMode);
         })
         .catch(() => undefined);
-    }, [])
+    }, [refreshProfile])
   );
 
   // Live device GPS while Home is focused — not a one-shot on mount.
@@ -270,9 +272,11 @@ export default function PassengerHomeScreen() {
             onPress={() => router.push("/passenger/account" as never)}
             accessibilityLabel="Open account"
           >
-            <Text style={styles.avatarText}>
-              {first.charAt(0).toUpperCase()}
-            </Text>
+            <ProfileAvatar
+              uri={profile?.avatar_url}
+              name={first}
+              size={40}
+            />
           </Pressable>
         </View>
       </View>
@@ -538,17 +542,13 @@ function makeStyles(colors: ThemeColors) {
     width: 40,
     height: 40,
     borderRadius: 20,
+    overflow: "hidden",
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     ...shadows.card,
-  },
-  avatarText: {
-    color: colors.dark,
-    fontWeight: "600",
-    fontSize: 16,
   },
   sheet: {
     flex: 1,

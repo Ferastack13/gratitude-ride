@@ -5,6 +5,7 @@ import {
   type AccountType,
   type AppHome,
 } from "@/lib/account-type";
+import { getProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
 import type { Session } from "@supabase/supabase-js";
@@ -38,14 +39,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 async function loadProfile(userId: string): Promise<Profile | null> {
   try {
-    const { data } = await supabase
-      .from("users")
-      .select(
-        "id, email, full_name, phone, role, avatar_url, created_at, updated_at"
-      )
-      .eq("id", userId)
-      .maybeSingle();
-    return data;
+    return await getProfile(userId);
   } catch {
     return null;
   }

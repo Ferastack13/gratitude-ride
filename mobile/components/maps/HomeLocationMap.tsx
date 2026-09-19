@@ -89,7 +89,7 @@ export function HomeLocationMap({
   const shellStyle = [
     styles.shell,
     flush && styles.shellFlush,
-    { height },
+    { height, width: "100%" as const },
     Platform.OS === "android" && styles.shellAndroid,
   ];
 
@@ -97,7 +97,8 @@ export function HomeLocationMap({
     <View style={shellStyle} collapsable={false}>
       <MapView
         ref={mapRef}
-        style={styles.map}
+        key={coords ? "located" : "waiting"}
+        style={{ width: "100%", height }}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={coords ? regionFrom(coords, STREET_DELTA) : NIGERIA}
         showsUserLocation={Boolean(coords)}
@@ -190,11 +191,12 @@ const styles = StyleSheet.create({
   shellAndroid: {
     overflow: "visible",
   },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
   cover: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(247,244,237,0.55)",

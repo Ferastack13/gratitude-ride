@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#dbe7e0",
   },
   fullRaster: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     height: undefined as unknown as number,
   },
   badge: {

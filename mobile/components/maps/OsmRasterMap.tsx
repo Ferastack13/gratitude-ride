@@ -159,7 +159,7 @@ export function OsmRasterMap({
 
 const styles = StyleSheet.create({
   layer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   marker: {
     position: "absolute",

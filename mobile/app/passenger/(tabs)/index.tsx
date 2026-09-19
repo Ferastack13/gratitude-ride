@@ -247,7 +247,7 @@ export default function PassengerHomeScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.mapStage}>
+      <View style={[styles.mapStage, { height: mapHeight }]}>
         <HomeLocationMap
           coords={mapCoords}
           loading={locating}

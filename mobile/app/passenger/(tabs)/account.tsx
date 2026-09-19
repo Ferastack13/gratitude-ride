@@ -1,10 +1,11 @@
-import { colors, radii } from "@/constants/theme";
+import { radii, type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { useColors } from "@/context/theme";
 import { getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Linking,
@@ -29,6 +30,8 @@ function Tile({
   label: string;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       style={({ pressed }) => [styles.tile, pressed && { opacity: 0.88 }]}
@@ -53,6 +56,8 @@ function Row({
   badge?: string;
   onPress: () => void;
 }) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { opacity: 0.75 }]}
@@ -78,6 +83,8 @@ function Row({
 export default function PassengerAccountScreen() {
   const { profile, signOut, setAccountTypePreference } = useAuth();
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [simpleMode, setSimpleMode] = useState(false);
   const name = profile?.full_name ?? "Passenger";
   const version =
@@ -258,7 +265,8 @@ export default function PassengerAccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -445,3 +453,4 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+}

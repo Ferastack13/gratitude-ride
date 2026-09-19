@@ -1,4 +1,5 @@
-import { colors, radii, shadows } from "@/constants/theme";
+import { radii, shadows, type ThemeColors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import type { ComponentProps } from "react";
@@ -14,87 +15,82 @@ type TabTheme = {
   filled: IconName;
 };
 
-const TAB_THEME: Record<string, TabTheme> = {
-  index: {
-    accent: colors.primary,
-    soft: colors.primarySoft,
-    outline: "home-outline",
-    filled: "home",
-  },
-  services: {
-    accent: colors.secondary,
-    soft: colors.secondarySoft,
-    outline: "apps-outline",
-    filled: "apps",
-  },
-  activity: {
-    accent: colors.success,
-    soft: colors.successSoft,
-    outline: "pulse-outline",
-    filled: "pulse",
-  },
-  account: {
-    accent: colors.primaryGlow,
-    soft: colors.pastelBlue,
-    outline: "person-circle-outline",
-    filled: "person-circle",
-  },
-  orders: {
-    accent: colors.secondary,
-    soft: colors.secondarySoft,
-    outline: "compass-outline",
-    filled: "compass",
-  },
-  earnings: {
-    accent: colors.success,
-    soft: colors.successSoft,
-    outline: "wallet-outline",
-    filled: "wallet",
-  },
-  inbox: {
-    accent: colors.primaryGlow,
-    soft: colors.pastelBlue,
-    outline: "chatbubbles-outline",
-    filled: "chatbubbles",
-  },
-  profile: {
-    accent: colors.primary,
-    soft: colors.primarySoft,
-    outline: "person-circle-outline",
-    filled: "person-circle",
-  },
-  book: {
-    accent: colors.secondary,
-    soft: colors.secondarySoft,
-    outline: "cube-outline",
-    filled: "cube",
-  },
-  deliveries: {
-    accent: colors.success,
-    soft: colors.successSoft,
-    outline: "navigate-outline",
-    filled: "navigate",
-  },
-  bookings: {
-    accent: colors.primaryGlow,
-    soft: colors.pastelBlue,
-    outline: "briefcase-outline",
-    filled: "briefcase",
-  },
-  billing: {
-    accent: colors.secondary,
-    soft: colors.secondarySoft,
-    outline: "card-outline",
-    filled: "card",
-  },
-};
-
-const FALLBACK: TabTheme = {
-  accent: colors.primary,
-  soft: colors.primarySoft,
-  outline: "ellipse-outline",
-  filled: "ellipse",
-};
+function tabThemes(colors: ThemeColors): Record<string, TabTheme> {
+  return {
+    index: {
+      accent: colors.primary,
+      soft: colors.primarySoft,
+      outline: "home-outline",
+      filled: "home",
+    },
+    services: {
+      accent: colors.secondary,
+      soft: colors.secondarySoft,
+      outline: "apps-outline",
+      filled: "apps",
+    },
+    activity: {
+      accent: colors.success,
+      soft: colors.successSoft,
+      outline: "pulse-outline",
+      filled: "pulse",
+    },
+    account: {
+      accent: colors.primaryGlow,
+      soft: colors.pastelBlue,
+      outline: "person-circle-outline",
+      filled: "person-circle",
+    },
+    orders: {
+      accent: colors.secondary,
+      soft: colors.secondarySoft,
+      outline: "compass-outline",
+      filled: "compass",
+    },
+    earnings: {
+      accent: colors.success,
+      soft: colors.successSoft,
+      outline: "wallet-outline",
+      filled: "wallet",
+    },
+    inbox: {
+      accent: colors.primaryGlow,
+      soft: colors.pastelBlue,
+      outline: "chatbubbles-outline",
+      filled: "chatbubbles",
+    },
+    profile: {
+      accent: colors.primary,
+      soft: colors.primarySoft,
+      outline: "person-circle-outline",
+      filled: "person-circle",
+    },
+    book: {
+      accent: colors.secondary,
+      soft: colors.secondarySoft,
+      outline: "cube-outline",
+      filled: "cube",
+    },
+    deliveries: {
+      accent: colors.success,
+      soft: colors.successSoft,
+      outline: "navigate-outline",
+      filled: "navigate",
+    },
+    bookings: {
+      accent: colors.primaryGlow,
+      soft: colors.pastelBlue,
+      outline: "briefcase-outline",
+      filled: "briefcase",
+    },
+    billing: {
+      accent: colors.secondary,
+      soft: colors.secondarySoft,
+      outline: "card-outline",
+      filled: "card",
+    },
+  };
+}
 
 const TAB_ROUTE_ALLOWLIST = new Set([
   "index",
@@ -112,7 +108,7 @@ const TAB_ROUTE_ALLOWLIST = new Set([
   "team",
 ]);
 
-function themeFor(routeName: string, label: string): TabTheme {
+function themeFor(routeName: string, label: string, colors: ThemeColors): TabTheme {
   if (routeName === "index" && label === "Hub") {
     return {
       accent: colors.primary,
@@ -121,12 +117,20 @@ function themeFor(routeName: string, label: string): TabTheme {
       filled: "bicycle",
     };
   }
-  return TAB_THEME[routeName] ?? FALLBACK;
+  return (
+    tabThemes(colors)[routeName] ?? {
+      accent: colors.primary,
+      soft: colors.primarySoft,
+      outline: "ellipse-outline",
+      filled: "ellipse",
+    }
+  );
 }
 
 /** Android-safe tab bar — sits above MapView and always receives taps. */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 12 : 8);
 
   const tabs = state.routes.filter((route) => {
@@ -145,14 +149,20 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 
   return (
     <View
-      style={[styles.wrap, { paddingBottom: bottomPad }]}
+      style={[styles.wrap, { paddingBottom: bottomPad, backgroundColor: colors.surface }]}
       collapsable={false}
       renderToHardwareTextureAndroid
     >
-      <View style={styles.dock} collapsable={false}>
+      <View
+        style={[
+          styles.dock,
+          { backgroundColor: colors.white, borderColor: colors.border },
+        ]}
+        collapsable={false}
+      >
         <View style={styles.brandStrip}>
-          <View style={styles.brandForest} />
-          <View style={styles.brandGold} />
+          <View style={[styles.brandForest, { backgroundColor: colors.primary }]} />
+          <View style={[styles.brandGold, { backgroundColor: colors.secondary }]} />
         </View>
         <View style={styles.row} collapsable={false}>
           {tabs.map((route) => {
@@ -166,7 +176,7 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                   ? "Home"
                   : route.name;
 
-            const theme = themeFor(route.name, label);
+            const theme = themeFor(route.name, label, colors);
             const icon = focused ? theme.filled : theme.outline;
 
             const onPress = () => {
@@ -205,7 +215,7 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                   style={[
                     styles.iconWell,
                     focused
-                      ? styles.iconWellOn
+                      ? { backgroundColor: colors.white }
                       : { backgroundColor: theme.soft },
                   ]}
                 >
@@ -218,7 +228,7 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 <Text
                   style={[
                     styles.label,
-                    focused ? styles.labelOn : { color: colors.muted },
+                    focused ? { color: colors.white, fontWeight: "700" } : { color: colors.muted },
                   ]}
                   numberOfLines={1}
                 >
@@ -237,17 +247,14 @@ export const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 98 : 86;
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.surface,
     paddingHorizontal: 14,
     paddingTop: 8,
     zIndex: 10000,
     elevation: 16,
   },
   dock: {
-    backgroundColor: colors.white,
     borderRadius: radii.xxl,
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: "hidden",
     ...shadows.float,
   },
@@ -257,11 +264,9 @@ const styles = StyleSheet.create({
   },
   brandForest: {
     flex: 2,
-    backgroundColor: colors.primary,
   },
   brandGold: {
     flex: 1,
-    backgroundColor: colors.secondary,
   },
   row: {
     minHeight: 62,
@@ -299,16 +304,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconWellOn: {
-    backgroundColor: colors.white,
-  },
   label: {
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 0.15,
-  },
-  labelOn: {
-    color: colors.white,
-    fontWeight: "700",
   },
 });

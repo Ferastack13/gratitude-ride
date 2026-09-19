@@ -1,5 +1,5 @@
 /** Gen Z Marketplace palette — forest green, cream, warm orange. */
-export const colors = {
+export const lightColors = {
   primary: "#12372A",
   primaryDark: "#0C261D",
   primarySoft: "#E7EFEA",
@@ -28,6 +28,64 @@ export const colors = {
   pastelGreen: "#E5F4EC",
   pastelPurple: "#F3EAFF",
 } as const;
+
+export type ThemeScheme = "light" | "dark";
+export type ThemeColors = { [K in keyof typeof lightColors]: string };
+
+/** Forest surfaces with cream type — used when Appearance is Dark, or the phone is in dark mode. */
+export const darkColors: ThemeColors = {
+  primary: "#F59E3D",
+  primaryDark: "#0C261D",
+  primarySoft: "#1F5A42",
+  primaryGlow: "#F6C177",
+  secondary: "#F59E3D",
+  secondaryDark: "#F6C177",
+  secondarySoft: "#3D2E18",
+  success: "#7BC99A",
+  successSoft: "#163D30",
+  dark: "#F7F4ED",
+  darkSurface: "#12372A",
+  darkElevated: "#1F5A42",
+  muted: "#C5D0C9",
+  mutedLight: "#9AADA4",
+  surface: "#0C261D",
+  surfaceAlt: "#12372A",
+  white: "#163A2F",
+  border: "#2F5344",
+  danger: "#F87171",
+  dangerSoft: "#3D1A18",
+  warning: "#F59E3D",
+  warningSoft: "#3D2E18",
+  mapInk: "#F7F4ED",
+  pastelBlue: "#1F5A42",
+  pastelGreen: "#163D30",
+  pastelPurple: "#2A2438",
+};
+
+/** Default / Light appearance — cream canvas with forest and orange. */
+export const colors = lightColors;
+
+export function colorsFor(
+  scheme: ThemeScheme,
+  highContrast = false
+): ThemeColors {
+  const base = scheme === "dark" ? darkColors : lightColors;
+  if (!highContrast) return base;
+  if (scheme === "dark") {
+    return {
+      ...base,
+      border: "#F59E3D",
+      muted: "#F7F4ED",
+      mutedLight: "#E7EFEA",
+    };
+  }
+  return {
+    ...base,
+    border: "#12372A",
+    muted: "#17211D",
+    mutedLight: "#12372A",
+  };
+}
 
 export const spacing = {
   xs: 6,

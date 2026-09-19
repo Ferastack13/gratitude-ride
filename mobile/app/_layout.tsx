@@ -1,7 +1,7 @@
 import "react-native-gesture-handler";
 
 import { AuthProvider } from "@/context/auth";
-import { colors } from "@/constants/theme";
+import { ThemeProvider, useAppTheme } from "@/context/theme";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -13,8 +13,19 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <StatusBar style="dark" />
+    <ThemeProvider>
+      <AuthProvider>
+        <ThemedApp />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+function ThemedApp() {
+  const { colors, scheme } = useAppTheme();
+  return (
+    <>
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -30,6 +41,6 @@ export default function RootLayout() {
         <Stack.Screen name="family" />
         <Stack.Screen name="business" />
       </Stack>
-    </AuthProvider>
+    </>
   );
 }

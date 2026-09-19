@@ -1,9 +1,10 @@
 import { AppTabBar } from "@/components/navigation/AppTabBar";
-import { colors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import { Tabs } from "expo-router";
 
 /** Permanent passenger tabs only — Home · Services · Activity · Account */
 export default function PassengerTabsLayout() {
+  const colors = useColors();
   return (
     <Tabs
       backBehavior="history"

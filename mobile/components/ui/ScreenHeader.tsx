@@ -1,4 +1,5 @@
-import { colors, radii } from "@/constants/theme";
+import { radii } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -14,17 +15,29 @@ export function ScreenHeader({
   right?: ReactNode;
   onBack?: () => void;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
         {onBack ? (
-          <Pressable style={styles.back} onPress={onBack}>
+          <Pressable
+            style={[
+              styles.back,
+              {
+                backgroundColor: colors.white,
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={onBack}
+          >
             <Ionicons name="arrow-back" size={20} color={colors.dark} />
           </Pressable>
         ) : null}
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.sub}>{subtitle}</Text> : null}
+          <Text style={[styles.title, { color: colors.dark }]}>{title}</Text>
+          {subtitle ? (
+            <Text style={[styles.sub, { color: colors.muted }]}>{subtitle}</Text>
+          ) : null}
         </View>
         {right}
       </View>
@@ -39,17 +52,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.full,
-    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: colors.dark,
     letterSpacing: -0.5,
   },
-  sub: { fontSize: 13, color: colors.muted, marginTop: 2, fontWeight: "400" },
+  sub: { fontSize: 13, marginTop: 2, fontWeight: "400" },
 });

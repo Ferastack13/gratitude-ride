@@ -3,9 +3,16 @@ import {
   SettingsShell,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
+import { darkColors, lightColors } from "@/constants/theme";
+import { useAppTheme } from "@/context/theme";
 import type { AppearanceMode } from "@/lib/settings";
+import { StyleSheet, View } from "react-native";
 
-const OPTIONS: { value: AppearanceMode; title: string; body: string }[] = [
+const OPTIONS: {
+  value: AppearanceMode;
+  title: string;
+  body: string;
+}[] = [
   {
     value: "system",
     title: "Use device settings",
@@ -23,8 +30,42 @@ const OPTIONS: { value: AppearanceMode; title: string; body: string }[] = [
   },
 ];
 
+function Preview({ mode }: { mode: AppearanceMode }) {
+  if (mode === "system") {
+    return (
+      <View style={preview.split}>
+        <View style={[preview.half, { backgroundColor: lightColors.surface }]}>
+          <View style={[preview.dot, { backgroundColor: lightColors.primary }]} />
+          <View style={[preview.dot, { backgroundColor: lightColors.secondary }]} />
+        </View>
+        <View style={[preview.half, { backgroundColor: darkColors.surface }]}>
+          <View style={[preview.dot, { backgroundColor: darkColors.dark }]} />
+          <View style={[preview.dot, { backgroundColor: darkColors.primary }]} />
+        </View>
+      </View>
+    );
+  }
+  if (mode === "light") {
+    return (
+      <View style={[preview.strip, { backgroundColor: lightColors.surface }]}>
+        <View style={[preview.swatch, { backgroundColor: lightColors.primary }]} />
+        <View style={[preview.swatch, { backgroundColor: lightColors.secondary }]} />
+        <View style={[preview.swatch, { backgroundColor: lightColors.white, borderWidth: 1, borderColor: lightColors.border }]} />
+      </View>
+    );
+  }
+  return (
+    <View style={[preview.strip, { backgroundColor: darkColors.surface }]}>
+      <View style={[preview.swatch, { backgroundColor: darkColors.dark }]} />
+      <View style={[preview.swatch, { backgroundColor: darkColors.primary }]} />
+      <View style={[preview.swatch, { backgroundColor: darkColors.white }]} />
+    </View>
+  );
+}
+
 export default function AppearanceScreen() {
-  const { settings, update, palette, ready } = useSettingsState();
+  const { settings, palette, ready } = useSettingsState();
+  const { setAppearance } = useAppTheme();
   if (!ready || !settings) return null;
 
   return (
@@ -36,9 +77,47 @@ export default function AppearanceScreen() {
           body={o.body}
           selected={settings.appearance === o.value}
           palette={palette}
-          onPress={() => update({ appearance: o.value })}
-        />
+          onPress={() => void setAppearance(o.value)}
+        >
+          <Preview mode={o.value} />
+        </ChoiceCard>
       ))}
     </SettingsShell>
   );
 }
+
+const preview = StyleSheet.create({
+  strip: {
+    height: 36,
+    borderRadius: 10,
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  split: {
+    height: 36,
+    borderRadius: 10,
+    marginTop: 10,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  half: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  swatch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+});

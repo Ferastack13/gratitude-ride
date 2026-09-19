@@ -1,32 +1,26 @@
 import { Screen } from "@/components/ui/Screen";
-import { colors, radii, typography } from "@/constants/theme";
+import { radii, typography, type ThemeColors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import { RIDE_OPTIONS, type RideOptionId } from "@/lib/ride-options";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-const ACCENT: Record<
-  RideOptionId,
-  { iconBg: string; iconFg: string; tag: string }
-> = {
-  standard: {
-    iconBg: colors.surfaceAlt,
-    iconFg: colors.dark,
-    tag: "Everyday",
-  },
-  express: {
-    iconBg: colors.primarySoft,
-    iconFg: colors.primary,
-    tag: "Faster pickup",
-  },
-  comfort: {
-    iconBg: "#F4F0E6",
-    iconFg: "#8B7355",
-    tag: "Extra space",
-  },
-};
+function accentFor(id: RideOptionId, colors: ThemeColors) {
+  if (id === "express") {
+    return { iconBg: colors.primarySoft, iconFg: colors.primary, tag: "Faster pickup" };
+  }
+  if (id === "comfort") {
+    return { iconBg: colors.secondarySoft, iconFg: colors.secondaryDark, tag: "Extra space" };
+  }
+  return { iconBg: colors.surfaceAlt, iconFg: colors.dark, tag: "Everyday" };
+}
 
 export default function PassengerServicesScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Screen>
       <View style={styles.head}>
@@ -36,7 +30,7 @@ export default function PassengerServicesScreen() {
 
       <View style={styles.list}>
         {RIDE_OPTIONS.map((s, index) => {
-          const accent = ACCENT[s.id];
+          const accent = accentFor(s.id, colors);
           return (
             <View key={s.id}>
               {index > 0 ? <View style={styles.divider} /> : null}
@@ -93,74 +87,78 @@ export default function PassengerServicesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  head: { gap: 6, marginBottom: 12 },
-  title: { ...typography.pageTitle },
-  sub: { ...typography.supporting, fontSize: 14 },
-  list: { marginBottom: 28 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 16,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-  },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  tileTitle: {
-    fontWeight: "600",
-    color: colors.dark,
-    fontSize: 17,
-  },
-  tag: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: colors.muted,
-  },
-  hint: {
-    ...typography.supporting,
-    marginTop: 4,
-  },
-  cta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radii.lg,
-    padding: 16,
-  },
-  ctaTitle: {
-    fontWeight: "600",
-    color: colors.dark,
-    fontSize: 16,
-  },
-  ctaBody: {
-    ...typography.supporting,
-    marginTop: 4,
-  },
-  ctaBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.full,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  ctaBtnText: {
-    color: colors.white,
-    fontWeight: "600",
-    fontSize: 14,
-  },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    head: { gap: 6, marginBottom: 12 },
+    title: { ...typography.pageTitle, color: colors.dark },
+    sub: { ...typography.supporting, fontSize: 14, color: colors.muted },
+    list: { marginBottom: 28 },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingVertical: 16,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+    },
+    icon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    tileTitle: {
+      fontWeight: "600",
+      color: colors.dark,
+      fontSize: 17,
+    },
+    tag: {
+      fontSize: 11,
+      fontWeight: "500",
+      color: colors.muted,
+    },
+    hint: {
+      ...typography.supporting,
+      marginTop: 4,
+      color: colors.muted,
+    },
+    cta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: radii.lg,
+      padding: 16,
+    },
+    ctaTitle: {
+      fontWeight: "600",
+      color: colors.dark,
+      fontSize: 16,
+    },
+    ctaBody: {
+      ...typography.supporting,
+      marginTop: 4,
+      color: colors.muted,
+    },
+    ctaBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: radii.full,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    ctaBtnText: {
+      color: colors.white,
+      fontWeight: "600",
+      fontSize: 14,
+    },
+  });
+}

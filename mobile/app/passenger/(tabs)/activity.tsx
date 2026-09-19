@@ -1,8 +1,9 @@
 import { TripActivityCard } from "@/components/passenger/TripActivityCard";
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
-import { colors, typography } from "@/constants/theme";
+import { typography, type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { useColors } from "@/context/theme";
 import type { Delivery } from "@/lib/deliveries";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect } from "expo-router";
@@ -13,6 +14,8 @@ const ACTIVE = new Set(["pending", "accepted", "picked_up", "in_transit"]);
 
 export default function PassengerActivityScreen() {
   const { profile } = useAuth();
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [rows, setRows] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,16 +117,19 @@ export default function PassengerActivityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  head: { gap: 4, marginBottom: 8 },
-  title: { ...typography.pageTitle },
-  sub: { ...typography.supporting, fontSize: 14 },
-  list: { gap: 4 },
-  section: {
-    marginTop: 16,
-    marginBottom: 4,
-    ...typography.label,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    head: { gap: 4, marginBottom: 8 },
+    title: { ...typography.pageTitle, color: colors.dark },
+    sub: { ...typography.supporting, fontSize: 14, color: colors.muted },
+    list: { gap: 4 },
+    section: {
+      marginTop: 16,
+      marginBottom: 4,
+      ...typography.label,
+      color: colors.muted,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+  });
+}

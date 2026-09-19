@@ -1,6 +1,6 @@
-import { colors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export function Screen({
@@ -10,18 +10,22 @@ export function Screen({
   children: ReactNode;
   scroll?: boolean;
 }) {
+  const colors = useColors();
+  const safe = { flex: 1 as const, backgroundColor: colors.surface };
+  const body = { padding: 18, gap: 14, paddingBottom: 48 };
+
   if (!scroll) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={styles.body}>{children}</View>
+      <SafeAreaView style={safe} edges={["top"]}>
+        <View style={body}>{children}</View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={safe} edges={["top"]}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={body}
         keyboardShouldPersistTaps="handled"
       >
         {children}
@@ -29,8 +33,3 @@ export function Screen({
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.surface },
-  body: { padding: 18, gap: 14, paddingBottom: 48 },
-});

@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
-import { colors, typography } from "@/constants/theme";
+import { typography, type ThemeColors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import type { Delivery } from "@/lib/deliveries";
 import {
   formatCurrency,
@@ -8,6 +9,7 @@ import {
   statusTone,
 } from "@/lib/format";
 import { rideTypeFromNotes } from "@/lib/ride-matching";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 const ACTIVE = new Set(["pending", "accepted", "picked_up", "in_transit"]);
@@ -18,6 +20,8 @@ type Props = {
 };
 
 export function TripActivityCard({ delivery, onPress }: Props) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const active = ACTIVE.has(delivery.status);
   const when = delivery.created_at
     ? new Date(delivery.created_at).toLocaleString(undefined, {
@@ -56,7 +60,8 @@ export function TripActivityCard({ delivery, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -73,6 +78,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     marginBottom: 4,
   },
-  route: { ...typography.bodyStrong, fontSize: 14 },
-  meta: { ...typography.supporting, fontSize: 12 },
+  route: { ...typography.bodyStrong, fontSize: 14, color: colors.dark },
+  meta: { ...typography.supporting, fontSize: 12, color: colors.muted },
 });
+}

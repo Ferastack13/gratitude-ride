@@ -95,22 +95,30 @@ export type SettingsPalette = {
   overlay: string;
 };
 
-export function resolvedAppearance(mode: AppearanceMode): "light" | "dark" {
+export function resolvedAppearance(
+  mode: AppearanceMode,
+  systemScheme?: "light" | "dark"
+): "light" | "dark" {
   if (mode === "light") return "light";
   if (mode === "dark") return "dark";
+  if (systemScheme) return systemScheme;
   return Appearance.getColorScheme() === "dark" ? "dark" : "light";
 }
 
-export function paletteFor(mode: AppearanceMode, highContrast = false): SettingsPalette {
-  const resolved = resolvedAppearance(mode);
+export function paletteFor(
+  mode: AppearanceMode,
+  highContrast = false,
+  systemScheme?: "light" | "dark"
+): SettingsPalette {
+  const resolved = resolvedAppearance(mode, systemScheme);
   if (resolved === "dark") {
     return {
-      bg: colors.primaryDark,
-      card: colors.darkElevated,
-      text: colors.surface,
-      muted: highContrast ? "#E7EFEA" : "#B7C2BB",
-      border: highContrast ? colors.secondary : "#2F5344",
-      accent: colors.secondary,
+      bg: "#0C261D",
+      card: "#163A2F",
+      text: "#F7F4ED",
+      muted: highContrast ? "#F7F4ED" : "#C5D0C9",
+      border: highContrast ? "#F59E3D" : "#2F5344",
+      accent: "#F59E3D",
       danger: "#F87171",
       overlay: "rgba(7,18,14,0.55)",
     };
@@ -119,7 +127,7 @@ export function paletteFor(mode: AppearanceMode, highContrast = false): Settings
     bg: colors.surface,
     card: colors.white,
     text: colors.dark,
-    muted: colors.muted,
+    muted: highContrast ? colors.dark : colors.muted,
     border: highContrast ? colors.primary : colors.border,
     accent: colors.primary,
     danger: colors.danger,

@@ -3,7 +3,7 @@ import {
   SettingsRow,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
-import { colors } from "@/constants/theme";
+import { useAppTheme } from "@/context/theme";
 import { useAuth } from "@/context/auth";
 import { getSavedPlaces } from "@/lib/client-prefs";
 import {
@@ -30,6 +30,7 @@ export default function SettingsHomeScreen() {
   const insets = useSafeAreaInsets();
   const { profile, signOut, setAccountTypePreference } = useAuth();
   const { settings, palette, ready } = useSettingsState();
+  const { colors, scheme } = useAppTheme();
   const [homeLabel, setHomeLabel] = useState("Add home");
   const [workLabel, setWorkLabel] = useState("Add work");
 
@@ -85,7 +86,7 @@ export default function SettingsHomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
-      <StatusBar style={settings.appearance === "light" ? "dark" : "auto"} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <View style={styles.head}>
         <Pressable onPress={() => router.back()} hitSlop={12} style={styles.back}>
           <Ionicons name="chevron-back" size={26} color={palette.text} />
@@ -102,7 +103,9 @@ export default function SettingsHomeScreen() {
           onPress={() => router.push("/passenger/settings/profile" as never)}
         >
           <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
-            <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>
+              {name.charAt(0).toUpperCase()}
+            </Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.profileName, { color: palette.text }]}>{name}</Text>
@@ -231,7 +234,7 @@ export default function SettingsHomeScreen() {
             style={({ pressed }) => [styles.plain, pressed && { opacity: 0.75 }]}
             onPress={signOut}
           >
-            <Text style={styles.signOut}>Sign out</Text>
+            <Text style={[styles.signOut, { color: palette.danger }]}>Sign out</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -272,7 +275,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: {
-    color: colors.primary,
     fontWeight: "700",
     fontSize: 22,
   },
@@ -284,6 +286,5 @@ const styles = StyleSheet.create({
   signOut: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.danger,
   },
 });

@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/Badge";
 import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
-import { colors, radii, shadows, typography } from "@/constants/theme";
+import { radii, shadows, typography, type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { useColors } from "@/context/theme";
 import { getRecentPlaces, getSavedPlaces, type SavedPlaces } from "@/lib/client-prefs";
 import { commutePromptNow, getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import {
@@ -15,7 +16,7 @@ import type { LivePlace } from "@/lib/places";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -43,6 +44,8 @@ const QUICK_ACCESS = [
 
 export default function PassengerHomeScreen() {
   const { profile } = useAuth();
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
   const [pickup, setPickup] = useState<LivePlace | null>(null);
@@ -497,7 +500,8 @@ export default function PassengerHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -528,6 +532,7 @@ const styles = StyleSheet.create({
     ...typography.brand,
     marginBottom: 0,
     fontSize: 11,
+    color: colors.primary,
   },
   avatar: {
     width: 40,
@@ -637,8 +642,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 8,
   },
-  pickupLabel: { ...typography.label, marginBottom: 2 },
-  pickupValue: { ...typography.bodyStrong, fontSize: 14 },
+  pickupLabel: { ...typography.label, marginBottom: 2, color: colors.muted },
+  pickupValue: { ...typography.bodyStrong, fontSize: 14, color: colors.dark },
   pickupCoords: {
     marginTop: 2,
     fontSize: 11,
@@ -660,7 +665,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   permTitle: { fontWeight: "600", color: colors.dark, fontSize: 14 },
-  permBody: { ...typography.supporting },
+  permBody: { ...typography.supporting, color: colors.muted },
   permAction: {
     color: colors.primary,
     fontWeight: "600",
@@ -697,6 +702,7 @@ const styles = StyleSheet.create({
   },
   section: {
     ...typography.section,
+    color: colors.dark,
     marginBottom: 0,
   },
   quickRow: {
@@ -742,6 +748,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     ...typography.supporting,
+    color: colors.muted,
     paddingVertical: 10,
     paddingRight: 12,
   },
@@ -760,11 +767,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  recentTitle: { ...typography.bodyStrong },
-  recentSub: { ...typography.supporting, marginTop: 2 },
+  recentTitle: { ...typography.bodyStrong, color: colors.dark },
+  recentSub: { ...typography.supporting, marginTop: 2, color: colors.muted },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
     marginLeft: 48,
   },
 });
+}

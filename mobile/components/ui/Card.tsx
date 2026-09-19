@@ -1,7 +1,8 @@
-import { Button } from "@/components/ui/Button";
-import { colors, radii } from "@/constants/theme";
+import { radii } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { Button } from "@/components/ui/Button";
 
 export function Card({
   children,
@@ -14,10 +15,12 @@ export function Card({
   style?: StyleProp<ViewStyle>;
   tint?: "blue" | "green" | "purple" | "none";
 }) {
+  const colors = useColors();
   return (
     <View
       style={[
         styles.card,
+        { backgroundColor: colors.surfaceAlt },
         tint === "blue" && { backgroundColor: colors.pastelBlue },
         tint === "green" && { backgroundColor: colors.pastelGreen },
         tint === "purple" && { backgroundColor: colors.pastelPurple },
@@ -43,11 +46,12 @@ export function EmptyState({
   onAction?: () => void;
   icon?: string;
 }) {
+  const colors = useColors();
   return (
     <View style={styles.emptyWrap}>
       {icon ? <Text style={styles.emptyIcon}>{icon}</Text> : null}
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.title, { color: colors.dark }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.muted }]}>{message}</Text>
       {actionLabel && onAction ? (
         <View style={{ marginTop: 12, alignSelf: "stretch" }}>
           <Button label={actionLabel} onPress={onAction} size="sm" />
@@ -59,7 +63,6 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceAlt,
     borderRadius: radii.lg,
     gap: 8,
     overflow: "hidden",
@@ -75,12 +78,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: "600",
-    color: colors.dark,
     textAlign: "center",
   },
   message: {
     fontSize: 14,
-    color: colors.muted,
     lineHeight: 20,
     textAlign: "center",
     fontWeight: "400",

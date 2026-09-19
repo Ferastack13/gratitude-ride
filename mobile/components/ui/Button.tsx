@@ -1,4 +1,5 @@
-import { colors, radii } from "@/constants/theme";
+import { radii } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import {
   ActivityIndicator,
   Pressable,
@@ -31,6 +32,7 @@ export function Button({
   icon,
   style,
 }: Props) {
+  const colors = useColors();
   const isDisabled = disabled || loading;
   const lightLabel =
     variant === "secondary" || variant === "ghost" || variant === "outline";
@@ -43,12 +45,16 @@ export function Button({
         styles.base,
         size === "sm" && styles.sm,
         size === "lg" && styles.lg,
-        variant === "primary" && styles.primary,
-        variant === "secondary" && styles.secondary,
-        variant === "ghost" && styles.ghost,
-        variant === "outline" && styles.outline,
-        variant === "danger" && styles.danger,
-        variant === "dark" && styles.dark,
+        variant === "primary" && { backgroundColor: colors.primary },
+        variant === "secondary" && { backgroundColor: colors.secondary },
+        variant === "ghost" && { backgroundColor: "transparent" },
+        variant === "outline" && {
+          backgroundColor: colors.white,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        variant === "danger" && { backgroundColor: colors.danger },
+        variant === "dark" && { backgroundColor: colors.darkSurface },
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
@@ -58,7 +64,7 @@ export function Button({
         <ActivityIndicator
           color={
             variant === "primary" || variant === "danger" || variant === "dark"
-              ? colors.white
+              ? "#FFFFFF"
               : colors.primary
           }
         />
@@ -68,7 +74,7 @@ export function Button({
             <Ionicons
               name={icon}
               size={18}
-              color={lightLabel ? colors.dark : colors.white}
+              color={lightLabel ? colors.dark : "#FFFFFF"}
             />
           ) : null}
           <Text
@@ -76,9 +82,9 @@ export function Button({
               styles.label,
               size === "sm" && styles.smLabel,
               size === "lg" && styles.lgLabel,
-              variant === "secondary" && styles.secondaryLabel,
-              variant === "ghost" && styles.ghostLabel,
-              variant === "outline" && styles.outlineLabel,
+              variant === "secondary" && { color: colors.dark },
+              variant === "ghost" && { color: colors.primary },
+              variant === "outline" && { color: colors.dark },
             ]}
           >
             {label}
@@ -100,22 +106,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   sm: { minHeight: 42, paddingHorizontal: 14 },
   lg: { minHeight: 58, paddingHorizontal: 24 },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.secondary },
-  ghost: { backgroundColor: "transparent" },
-  outline: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  danger: { backgroundColor: colors.danger },
-  dark: { backgroundColor: colors.dark },
   pressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   disabled: { opacity: 0.45 },
-  label: { color: colors.white, fontSize: 16, fontWeight: "600" },
+  label: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
   smLabel: { fontSize: 14 },
   lgLabel: { fontSize: 16 },
-  secondaryLabel: { color: colors.dark },
-  ghostLabel: { color: colors.primary },
-  outlineLabel: { color: colors.dark },
 });

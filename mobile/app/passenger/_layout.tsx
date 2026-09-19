@@ -1,4 +1,4 @@
-import { colors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import { useAuth } from "@/context/auth";
 import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
@@ -10,6 +10,7 @@ import { ActivityIndicator, View } from "react-native";
  */
 export default function PassengerLayout() {
   const { session, loading, ready, profile, accountType } = useAuth();
+  const colors = useColors();
 
   if (loading || !ready) {
     return (

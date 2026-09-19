@@ -1,20 +1,8 @@
-import { colors, radii } from "@/constants/theme";
+import { radii } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import { StyleSheet, Text, View } from "react-native";
 
 type Tone = "primary" | "secondary" | "success" | "warning" | "danger" | "muted" | "outline";
-
-const TONE: Record<
-  Tone,
-  { bg: string; fg: string; border?: string }
-> = {
-  primary: { bg: colors.primarySoft, fg: colors.primaryDark },
-  secondary: { bg: colors.secondarySoft, fg: colors.secondaryDark },
-  success: { bg: colors.primarySoft, fg: colors.primaryDark },
-  warning: { bg: colors.warningSoft, fg: colors.warning },
-  danger: { bg: colors.dangerSoft, fg: colors.danger },
-  muted: { bg: colors.surface, fg: colors.muted },
-  outline: { bg: "transparent", fg: colors.dark, border: colors.border },
-};
 
 export function Badge({
   label,
@@ -23,6 +11,16 @@ export function Badge({
   label: string;
   tone?: Tone;
 }) {
+  const colors = useColors();
+  const TONE: Record<Tone, { bg: string; fg: string; border?: string }> = {
+    primary: { bg: colors.primarySoft, fg: colors.primaryDark },
+    secondary: { bg: colors.secondarySoft, fg: colors.secondaryDark },
+    success: { bg: colors.primarySoft, fg: colors.primaryDark },
+    warning: { bg: colors.warningSoft, fg: colors.warning },
+    danger: { bg: colors.dangerSoft, fg: colors.danger },
+    muted: { bg: colors.surface, fg: colors.muted },
+    outline: { bg: "transparent", fg: colors.dark, border: colors.border },
+  };
   const palette = TONE[tone];
   return (
     <View

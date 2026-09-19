@@ -1,14 +1,12 @@
+import { useAppTheme } from "@/context/theme";
 import {
   fontMul,
-  getAppSettings,
-  paletteFor,
-  setAppSettings,
   type AppSettings,
   type SettingsPalette,
 } from "@/lib/settings";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
+import { router } from "expo-router";
+import type { ReactNode } from "react";
 import { Switch } from "react-native";
 import {
   Pressable,
@@ -20,26 +18,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function useSettingsState() {
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      getAppSettings().then(setSettings).catch(() => undefined);
-    }, [])
-  );
-
-  const update = useCallback(async (patch: Parameters<typeof setAppSettings>[0]) => {
-    const next = await setAppSettings(patch);
-    setSettings(next);
-    return next;
-  }, []);
-
-  const palette = paletteFor(
-    settings?.appearance ?? "system",
-    settings?.highContrast ?? false
-  );
-
-  return { settings, update, palette, ready: Boolean(settings) };
+  const { settings, update, palette, ready } = useAppTheme();
+  return { settings, update, palette, ready };
 }
 
 export function SettingsShell({
@@ -170,12 +150,14 @@ export function ChoiceCard({
   selected,
   onPress,
   palette,
+  children,
 }: {
   title: string;
   body: string;
   selected: boolean;
   onPress: () => void;
   palette: SettingsPalette;
+  children?: ReactNode;
 }) {
   return (
     <Pressable
@@ -191,6 +173,7 @@ export function ChoiceCard({
       <View style={{ flex: 1 }}>
         <Text style={[styles.rowTitle, { color: palette.text }]}>{title}</Text>
         <Text style={[styles.rowSub, { color: palette.muted }]}>{body}</Text>
+        {children}
       </View>
       <Ionicons
         name={selected ? "checkmark-circle" : "ellipse-outline"}
@@ -213,8 +196,8 @@ export function SectionLabel({
   );
 }
 
-export function usePalette(settings: AppSettings) {
-  return paletteFor(settings.appearance, settings.highContrast);
+export function usePalette() {
+  return useAppTheme().palette;
 }
 
 const styles = StyleSheet.create({

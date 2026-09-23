@@ -24,6 +24,8 @@ type Props = {
   center: Coords;
   zoom: number;
   height: number;
+  /** Pixel width — pass this so tiles paint before onLayout (avoids a blank map). */
+  width?: number;
   markers?: Marker[];
   dragOffset?: { x: number; y: number };
   onLayoutSize?: (size: { w: number; h: number }) => void;
@@ -38,14 +40,27 @@ export function OsmRasterMap({
   center,
   zoom,
   height,
+  width: widthProp,
   markers = [],
   dragOffset = { x: 0, y: 0 },
   onLayoutSize,
   style,
   children,
 }: Props) {
-  const [size, setSize] = useState({ w: 0, h: height });
+  const [size, setSize] = useState({
+    w: widthProp && widthProp > 0 ? widthProp : 0,
+    h: height,
+  });
   const logged = useRef(false);
+
+  useEffect(() => {
+    setSize((prev) => {
+      const w = widthProp && widthProp > 0 ? widthProp : prev.w;
+      const h = height > 0 ? height : prev.h;
+      if (w === prev.w && h === prev.h) return prev;
+      return { w, h };
+    });
+  }, [widthProp, height]);
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height: h } = e.nativeEvent.layout;
@@ -96,7 +111,7 @@ export function OsmRasterMap({
       style={[
         {
           height,
-          width: "100%",
+          width: widthProp && widthProp > 0 ? widthProp : "100%",
           overflow: "hidden",
           backgroundColor: "#e8eef2",
         },
@@ -159,7 +174,11 @@ export function OsmRasterMap({
 
 const styles = StyleSheet.create({
   layer: {
-    ...StyleSheet.absoluteFill,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   marker: {
     position: "absolute",

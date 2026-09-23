@@ -48,7 +48,7 @@ export default function PassengerHomeScreen() {
   const colors = useColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { height: winH } = useWindowDimensions();
+  const { height: winH, width: winW } = useWindowDimensions();
   const [pickup, setPickup] = useState<LivePlace | null>(null);
   const [locating, setLocating] = useState(true);
   const [locMessage, setLocMessage] = useState<string | null>(null);
@@ -249,13 +249,14 @@ export default function PassengerHomeScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={[styles.mapStage, { height: mapHeight }]}>
+      <View style={[styles.mapStage, { height: mapHeight, width: winW }]}>
         <HomeLocationMap
           coords={mapCoords}
           loading={locating}
           errorMessage={locMessage}
           onRequestLocation={refreshLocation}
           height={mapHeight}
+          width={winW}
           flush
           controlsTop
         />
@@ -512,6 +513,9 @@ function makeStyles(colors: ThemeColors) {
   },
   mapStage: {
     position: "relative",
+    width: "100%",
+    overflow: "hidden",
+    backgroundColor: "#dbe4ea",
   },
   mapHeader: {
     position: "absolute",

@@ -65,7 +65,7 @@ export async function ensureClientId(userId: string) {
   return data.id;
 }
 
-export async function ensureRiderId(userId: string, vehicleType = "motorcycle") {
+export async function ensureRiderId(userId: string, vehicleType = "Motorcycle") {
   const { data: existing } = await supabase
     .from("riders")
     .select("id")

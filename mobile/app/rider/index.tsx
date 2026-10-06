@@ -56,8 +56,8 @@ export default function DriverHomeScreen() {
         lng: Number(orders[0].pickup_lng),
       };
     }
-    // No GPS yet — center on first request only; never invent a city
-    return { lat: 0, lng: 0 };
+    // Expo Go Carto tiles — Nigeria overview until GPS lands (never 0,0 ocean).
+    return { lat: 9.082, lng: 8.6753 };
   }, [driverCoords, orders]);
 
   const refreshPending = useCallback(

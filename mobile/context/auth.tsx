@@ -5,6 +5,10 @@ import {
   type AccountType,
   type AppHome,
 } from "@/lib/account-type";
+import {
+  ensureClientIdentity,
+  ensureDriverIdentity,
+} from "@/lib/driver-bootstrap";
 import { getProfile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
@@ -32,7 +36,10 @@ type AuthContextValue = {
   ready: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  setAccountTypePreference: (type: AccountType) => Promise<void>;
+  setAccountTypePreference: (
+    type: AccountType,
+    opts?: { vehicleType?: string }
+  ) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -152,10 +159,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccountTypeState(null);
   }, []);
 
-  const setAccountTypePreference = useCallback(async (type: AccountType) => {
-    await persistAccountType(type);
-    setAccountTypeState(type);
-  }, []);
+  const setAccountTypePreference = useCallback(
+    async (type: AccountType, opts?: { vehicleType?: string }) => {
+      await persistAccountType(type);
+      setAccountTypeState(type);
+
+      const {
+        data: { session: next },
+      } = await supabase.auth.getSession();
+      const userId = next?.user?.id;
+      if (!userId) return;
+
+      try {
+        if (type === "driver") {
+          await ensureDriverIdentity(userId, opts?.vehicleType);
+        } else {
+          await ensureClientIdentity(userId, type);
+        }
+        const p = await loadProfile(userId);
+        setProfile(p);
+      } catch (err) {
+        console.warn("[auth] setAccountTypePreference bootstrap failed", err);
+      }
+    },
+    []
+  );
 
   const value = useMemo(
     () => ({

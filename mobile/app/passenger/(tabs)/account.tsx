@@ -2,6 +2,7 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
+import { switchToDriverMode } from "@/lib/driver-bootstrap";
 import { getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
@@ -210,9 +211,17 @@ export default function PassengerAccountScreen() {
               <Row
                 icon="person-add-outline"
                 title="Earn by driving or delivering"
-                onPress={async () => {
-                  await setAccountTypePreference("driver");
-                  router.replace("/rider" as never);
+                onPress={() => {
+                  const userId = profile?.id;
+                  if (!userId) return;
+                  void switchToDriverMode({
+                    userId,
+                    setAccountTypePreference: (type, opts) =>
+                      setAccountTypePreference(type, opts),
+                    onReady: () => router.replace("/rider" as never),
+                    onError: (message) =>
+                      Alert.alert("Couldn’t switch to driver", message),
+                  });
                 }}
               />
               <Row

@@ -7,6 +7,7 @@ import {
 import { useAppTheme } from "@/context/theme";
 import { useAuth } from "@/context/auth";
 import { getSavedPlaces } from "@/lib/client-prefs";
+import { switchToDriverMode } from "@/lib/driver-bootstrap";
 import {
   appearanceSubtitle,
   nearbySubtitle,
@@ -59,9 +60,17 @@ export default function SettingsHomeScreen() {
       },
       {
         text: "Driver",
-        onPress: async () => {
-          await setAccountTypePreference("driver");
-          router.replace("/rider" as never);
+        onPress: () => {
+          const userId = profile?.id;
+          if (!userId) return;
+          void switchToDriverMode({
+            userId,
+            setAccountTypePreference: (type, opts) =>
+              setAccountTypePreference(type, opts),
+            onReady: () => router.replace("/rider" as never),
+            onError: (message) =>
+              Alert.alert("Couldn’t switch to driver", message),
+          });
         },
       },
       {

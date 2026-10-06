@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type StyleProp,
   type ViewStyle,
@@ -83,6 +84,11 @@ export function RouteMap({
   onRecenter,
   style,
 }: Props) {
+  const { width: winW, height: winH } = useWindowDimensions();
+  const mapH = fullBleed
+    ? Math.round(Math.min(420, Math.max(220, winH * 0.42)))
+    : height;
+  const mapW = winW;
   const autoDelta = useMemo(
     () => delta ?? fitDelta(pickup, dropoff, driver, routeCoords),
     [
@@ -152,7 +158,7 @@ export function RouteMap({
     <View
       style={[
         fullBleed ? styles.full : styles.shell,
-        !fullBleed ? { height } : null,
+        !fullBleed ? { height: mapH } : null,
         style,
       ]}
       collapsable={false}
@@ -160,7 +166,8 @@ export function RouteMap({
       <OsmRasterMap
         center={mapCenter}
         zoom={zoom}
-        height={fullBleed ? height : height}
+        height={mapH}
+        width={mapW}
         markers={markers}
         style={fullBleed ? styles.fullRaster : undefined}
       />
@@ -220,8 +227,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#dbe7e0",
   },
   fullRaster: {
-    ...StyleSheet.absoluteFill,
-    height: undefined as unknown as number,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   badge: {
     position: "absolute",

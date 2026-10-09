@@ -411,7 +411,7 @@ export default function PassengerTrackScreen() {
           ? { lat: delivery.delivery_lat!, lng: delivery.delivery_lng! }
           : hasAnyDriverPoint
             ? { lat: driverLive!.lat, lng: driverLive!.lng }
-            : { lat: 0, lng: 0 };
+            : { lat: 9.082, lng: 8.6753 };
 
   void locationTick; // keep age label reactive
 

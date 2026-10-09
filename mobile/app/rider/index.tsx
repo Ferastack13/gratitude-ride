@@ -403,48 +403,69 @@ export default function DriverHomeScreen() {
                   tone={online ? "online" : "offline"}
                 />
               </View>
-              {activeTripId ? (
-                <Pressable
-                  style={styles.activeBtn}
-                  onPress={() =>
-                    router.push(`/rider/active/${activeTripId}` as never)
-                  }
-                >
-                  <Text style={styles.activeBtnText}>Active trip</Text>
-                </Pressable>
-              ) : null}
             </View>
 
+            {activeTripId ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.resumeBanner,
+                  pressed && { opacity: 0.9 },
+                ]}
+                onPress={() =>
+                  router.push(`/rider/active/${activeTripId}` as never)
+                }
+              >
+                <View style={styles.resumeIcon}>
+                  <Ionicons name="navigate" size={18} color={colors.white} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resumeTitle}>Trip in progress</Text>
+                  <Text style={styles.resumeSub}>
+                    Tap to resume pickup, navigation, and status updates
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.primaryDark}
+                />
+              </Pressable>
+            ) : null}
+
             <Text style={styles.mapHint}>
-              {driverCoords
-                ? "Live map around you — go online to get nearby ride offers."
-                : "Allow location so the map centers on you (works before any ride)."}
+              {activeTripId
+                ? "Finish your active trip before taking a new offer."
+                : driverCoords
+                  ? "Live map around you — go online to get nearby ride offers."
+                  : "Allow location so the map centers on you (works before any ride)."}
             </Text>
 
-            <Pressable
-              style={[
-                styles.onlineBtn,
-                online ? styles.onlineBtnOn : styles.onlineBtnOff,
-                toggling && { opacity: 0.7 },
-              ]}
-              onPress={toggleOnline}
-              disabled={toggling || loading}
-            >
-              {toggling ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <>
-                  <Ionicons
-                    name={online ? "radio-button-on" : "radio-button-off"}
-                    size={20}
-                    color={colors.white}
-                  />
-                  <Text style={styles.onlineBtnText}>
-                    {online ? "Go offline" : "Go online"}
-                  </Text>
-                </>
-              )}
-            </Pressable>
+            {!activeTripId ? (
+              <Pressable
+                style={[
+                  styles.onlineBtn,
+                  online ? styles.onlineBtnOn : styles.onlineBtnOff,
+                  toggling && { opacity: 0.7 },
+                ]}
+                onPress={toggleOnline}
+                disabled={toggling || loading}
+              >
+                {toggling ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={online ? "radio-button-on" : "radio-button-off"}
+                      size={20}
+                      color={colors.white}
+                    />
+                    <Text style={styles.onlineBtnText}>
+                      {online ? "Go offline" : "Go online"}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
 
             {online && !activeTripId ? (
               <Text style={styles.listen}>
@@ -455,9 +476,9 @@ export default function DriverHomeScreen() {
               </Text>
             ) : null}
 
-            {!online ? (
+            {activeTripId ? null : !online ? (
               <View style={styles.offlineCard}>
-                <Text style={styles.offlineTitle}>Ready when you are</Text>
+                <Text style={styles.offlineTitle}>You're offline</Text>
                 <Text style={styles.offlineSub}>
                   Go online to receive nearby ride requests within about{" "}
                   {DRIVER_MATCH_RADIUS_KM} km. The map above already shows your
@@ -468,16 +489,16 @@ export default function DriverHomeScreen() {
               <ActivityIndicator color={colors.primary} />
             ) : orders.length === 0 ? (
               <View style={styles.offlineCard}>
-                <Text style={styles.offlineTitle}>Looking for trips</Text>
+                <Text style={styles.offlineTitle}>Waiting for offers</Text>
                 <Text style={styles.offlineSub}>
-                  Stay nearby. New pending requests around you appear here
-                  automatically.
+                  You're online and listening. New pending requests near you
+                  pop up automatically.
                 </Text>
               </View>
             ) : (
               <Pressable
                 style={styles.queueCard}
-                onPress={() => router.push("/rider/orders" as never)}
+                onPress={() => setOffer(orders[0])}
               >
                 <View style={styles.queueIcon}>
                   <Ionicons name="flash" size={18} color={colors.primary} />
@@ -504,6 +525,7 @@ export default function DriverHomeScreen() {
         order={offer}
         visible={!!offer && online && !activeTripId}
         accepting={accepting}
+        driverCoords={driverCoords}
         onAccept={() => offer && accept(offer)}
         onDecline={() => offer && decline(offer)}
       />
@@ -570,13 +592,26 @@ const styles = StyleSheet.create({
   onlineBtnOn: { backgroundColor: colors.dark },
   onlineBtnOff: { backgroundColor: colors.primary },
   onlineBtnText: { color: colors.white, fontWeight: "900", fontSize: 16 },
-  activeBtn: {
+  resumeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: radii.full,
+    borderRadius: radii.lg,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  activeBtnText: { color: colors.primaryDark, fontWeight: "800", fontSize: 12 },
+  resumeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resumeTitle: { fontWeight: "900", color: colors.dark, fontSize: 15 },
+  resumeSub: { color: colors.muted, fontSize: 12, marginTop: 2, lineHeight: 16 },
   offlineCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,

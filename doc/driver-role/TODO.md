@@ -10,35 +10,35 @@ Details for each phase: [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 - [x] Audit `/rider` gate vs `profile.role` + `accountType` + `riders` row → see [PHASE0_AUDIT.md](./PHASE0_AUDIT.md)
 - [x] On enter driver mode: call `ensureRiderId`; upsert role/`account_type` as needed (`driver-bootstrap` + auth + `/rider` layout)
 - [x] When switching from passenger: prompt for vehicle type if missing (`switchToDriverMode` on Account + Settings)
-- [x] Verify/fix RLS for riders, deliveries, declines, accept → migration `20261006140000_driver_phase0_rls.sql` (**apply in Supabase**)
+- [x] Verify/fix RLS for riders, deliveries, declines, accept → migration `driver_phase0_rls` **applied via Supabase MCP**
 - [x] Switch Driver Home map to Carto/OSM tiles (RouteMap already Carto; fixed 0,0 center + tile sizing)
-- [ ] Smoke: register/switch as driver → land on Home with `riders` row + GPS permission (**manual in Expo Go after migration**)
+- [ ] Smoke: register/switch as driver → land on Home with `riders` row + GPS permission (**manual in Expo Go**)
 
 ---
 
 ## Phase 1 — Trip loop
 
 ### Home
-- [ ] Polish Online / Offline UI and copy
-- [ ] Empty state: offline vs online waiting for jobs
-- [ ] Offer modal: fee, distance, ETA, pickup/dropoff
-- [ ] Resume active trip banner → `/rider/active/[id]`
+- [x] Polish Online / Offline UI and copy
+- [x] Empty state: offline vs online waiting for jobs
+- [x] Offer modal: fee, distance, ETA, pickup/dropoff (+ to-pickup km)
+- [x] Resume active trip banner → `/rider/active/[id]`
 
 ### Active trip
-- [ ] Map: pickup, dropoff, driver self-marker
-- [ ] Deep link open in Maps / Waze
-- [ ] Call / WhatsApp passenger
-- [ ] Status slides only in order (`accepted` → `picked_up` → `in_transit` → `delivered`)
-- [ ] Keep GPS publisher while trip is live
-- [ ] Cancel / help path
+- [x] Map: pickup, dropoff, driver self-marker
+- [x] Deep link open in Maps / Waze (`maps-nav`)
+- [x] Call / WhatsApp passenger (`ContactBar`)
+- [x] Status slides only in order (`accepted` → `picked_up` → `in_transit` → `delivered`)
+- [x] Keep GPS publisher while trip is live
+- [x] Cancel / help path (Help + WhatsApp / Safety)
 
 ### Passenger side
-- [ ] Track screen shows live driver when GPS is fresh
-- [ ] Stale location messaging when update is old
+- [x] Track screen shows live driver when GPS is fresh
+- [x] Stale location messaging when update is old
 
 ### QA
-- [ ] End-to-end: book → online → offer → accept → complete → earnings row
-- [ ] Accept race: two drivers; only one wins via `accept_delivery`
+- [ ] End-to-end: book → online → offer → accept → complete → earnings row (**manual in Expo Go**)
+- [ ] Accept race: two drivers; only one wins via `accept_delivery` (**manual**)
 
 ---
 

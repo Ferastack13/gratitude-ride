@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/Card";
 import { ContactBar } from "@/components/workflow/ContactBar";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
 import { SlideAction } from "@/components/workflow/SlideAction";
-import { colors } from "@/constants/theme";
+import { colors, radii } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { distanceKm } from "@/lib/cities";
 import {
@@ -17,6 +17,7 @@ import {
 import { startDriverLocationPublisher } from "@/lib/driver-location";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
 import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
+import { openNavigationChooser } from "@/lib/maps-nav";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -24,8 +25,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
+  Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -47,10 +51,19 @@ function slideLabel(status: Delivery["status"]) {
 }
 
 const LIVE_STATUSES = new Set(["accepted", "picked_up", "in_transit"]);
+const NIGERIA = { lat: 9.082, lng: 8.6753 };
+
+/** Only these forward steps are allowed from each status. */
+const ALLOWED_NEXT: Partial<Record<Delivery["status"], Delivery["status"]>> = {
+  accepted: "picked_up",
+  picked_up: "in_transit",
+  in_transit: "delivered",
+};
 
 export default function ActiveDeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const { width: winW } = useWindowDimensions();
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [clientName, setClientName] = useState("Client");
   const [clientPhone, setClientPhone] = useState<string | null>(null);
@@ -136,7 +149,10 @@ export default function ActiveDeliveryScreen() {
   const advance = async () => {
     if (!delivery || !profile?.id || updating) return;
     const next = nextStatus(delivery.status);
-    if (!next) return;
+    if (!next || ALLOWED_NEXT[delivery.status] !== next) {
+      Alert.alert("Not ready", "Complete the current step first.");
+      return;
+    }
     setUpdating(true);
     try {
       const patch: Partial<Delivery> = { status: next };
@@ -144,13 +160,18 @@ export default function ActiveDeliveryScreen() {
         patch.delivered_at = new Date().toISOString();
         patch.actual_fee = delivery.estimated_fee;
       }
+      // Ordered advance: only update if status is still the expected current one.
       const { data, error } = await supabase
         .from("deliveries")
         .update(patch)
         .eq("id", delivery.id)
+        .eq("status", delivery.status)
         .select("*")
-        .single();
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error("Trip status changed. Pull to refresh and try again.");
+      }
       setDelivery(data);
 
       if (next === "delivered") {
@@ -166,6 +187,7 @@ export default function ActiveDeliveryScreen() {
               earnings:
                 Number(rider.earnings || 0) + Number(delivery.estimated_fee),
               total_deliveries: Number(rider.total_deliveries || 0) + 1,
+              is_available: false,
             })
             .eq("id", rider.id);
         }
@@ -180,9 +202,37 @@ export default function ActiveDeliveryScreen() {
         "Update failed",
         err instanceof Error ? err.message : "Try again."
       );
+      await load();
     } finally {
       setUpdating(false);
     }
+  };
+
+  const navigateToNextStop = () => {
+    if (!delivery) return;
+    const toPickup = delivery.status === "accepted";
+    const lat = toPickup ? delivery.pickup_lat : delivery.delivery_lat;
+    const lng = toPickup ? delivery.pickup_lng : delivery.delivery_lng;
+    const label = toPickup ? delivery.pickup_address : delivery.delivery_address;
+    if (lat == null || lng == null) {
+      Alert.alert("No coordinates", "This stop has no map pin yet.");
+      return;
+    }
+    void openNavigationChooser({ lat, lng, label: label ?? undefined });
+  };
+
+  const onHelp = () => {
+    Alert.alert("Need help?", "Choose an option", [
+      {
+        text: "WhatsApp support",
+        onPress: () => Linking.openURL("https://wa.me/2348000000000"),
+      },
+      {
+        text: "Safety",
+        onPress: () => router.push("/passenger/safety" as never),
+      },
+      { text: "Close", style: "cancel" },
+    ]);
   };
 
   if (loading) {
@@ -219,7 +269,7 @@ export default function ActiveDeliveryScreen() {
       ? selfCoords
       : delivery.pickup_lat != null
         ? { lat: delivery.pickup_lat, lng: delivery.pickup_lng! }
-        : { lat: 0, lng: 0 };
+        : NIGERIA;
 
   return (
     <MapShell
@@ -228,6 +278,7 @@ export default function ActiveDeliveryScreen() {
           fullBleed
           live={Boolean(selfCoords)}
           center={mapCenter}
+          height={Math.round(winW * 0.9)}
           pickup={
             delivery.pickup_lat != null
               ? {
@@ -258,12 +309,20 @@ export default function ActiveDeliveryScreen() {
         />
       }
       top={
-        <View style={styles.etaPill}>
-          <Ionicons name="navigate" size={14} color={colors.primary} />
-          <Text style={styles.etaText}>
-            {delivery.status === "accepted" ? "To pickup" : "To drop-off"} ·{" "}
-            {eta}
-          </Text>
+        <View style={styles.topRow}>
+          <Pressable style={styles.topBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={20} color={colors.dark} />
+          </Pressable>
+          <View style={styles.etaPill}>
+            <Ionicons name="navigate" size={14} color={colors.primary} />
+            <Text style={styles.etaText}>
+              {delivery.status === "accepted" ? "To pickup" : "To drop-off"} ·{" "}
+              {eta}
+            </Text>
+          </View>
+          <Pressable style={styles.topBtn} onPress={onHelp}>
+            <Ionicons name="help-circle-outline" size={20} color={colors.dark} />
+          </Pressable>
         </View>
       }
       sheet={
@@ -285,8 +344,24 @@ export default function ActiveDeliveryScreen() {
           <ContactBar
             name={clientName}
             phone={clientPhone}
-            subtitle="Passenger · call if you need directions"
+            subtitle="Passenger · call or WhatsApp if you need directions"
+            whatsAppMessage={`Hi ${clientName}, I'm your Gratitude Ride driver for ${delivery.tracking_id}.`}
           />
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.navBtn,
+              pressed && { opacity: 0.9 },
+            ]}
+            onPress={navigateToNextStop}
+          >
+            <Ionicons name="map" size={18} color={colors.white} />
+            <Text style={styles.navBtnText}>
+              {delivery.status === "accepted"
+                ? "Navigate to pickup"
+                : "Navigate to drop-off"}
+            </Text>
+          </Pressable>
 
           <View style={styles.routeBlock}>
             <Text style={styles.routeLabel}>Pickup</Text>
@@ -301,15 +376,15 @@ export default function ActiveDeliveryScreen() {
 
           <StatusTimeline status={delivery.status} />
 
-          {next ? (
+          {next && LIVE_STATUSES.has(delivery.status) ? (
             <SlideAction
               label={slideLabel(delivery.status)}
               disabled={updating}
               onConfirm={advance}
             />
-          ) : (
+          ) : delivery.status === "delivered" ? (
             <Text style={styles.done}>Trip completed</Text>
-          )}
+          ) : null}
         </View>
       }
     />
@@ -319,10 +394,26 @@ export default function ActiveDeliveryScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   pad: { flex: 1, padding: 18, justifyContent: "center" },
-  etaPill: {
-    alignSelf: "flex-start",
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+  },
+  topBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  etaPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     backgroundColor: colors.white,
     borderRadius: 999,
@@ -344,6 +435,16 @@ const styles = StyleSheet.create({
     color: colors.dark,
   },
   payout: { color: colors.primary, fontWeight: "800", marginTop: 2 },
+  navBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.full,
+    minHeight: 48,
+  },
+  navBtnText: { color: colors.white, fontWeight: "900", fontSize: 15 },
   routeBlock: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: 16,

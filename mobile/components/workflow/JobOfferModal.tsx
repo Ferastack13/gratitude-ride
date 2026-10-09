@@ -23,12 +23,15 @@ export function JobOfferModal({
   onAccept,
   onDecline,
   accepting,
+  driverCoords,
 }: {
   order: Delivery | null;
   visible: boolean;
   onAccept: () => void;
   onDecline: () => void;
   accepting?: boolean;
+  /** Driver GPS — used for “to pickup” distance. */
+  driverCoords?: { lat: number; lng: number } | null;
 }) {
   const [left, setLeft] = useState(OFFER_SECONDS);
   const progress = useRef(new Animated.Value(1)).current;
@@ -59,14 +62,25 @@ export function JobOfferModal({
 
   const meta = useMemo(() => {
     if (!order?.pickup_lat || !order?.delivery_lat) {
-      return { km: 0, eta: "—" };
+      return { tripKm: 0, toPickupKm: null as number | null, eta: "—" };
     }
-    const km = distanceKm(
+    const tripKm = distanceKm(
       { lat: order.pickup_lat, lng: order.pickup_lng! },
       { lat: order.delivery_lat, lng: order.delivery_lng! }
     );
-    return { km, eta: formatEta(estimateEtaMinutes(km, "pending")) };
-  }, [order]);
+    let toPickupKm: number | null = null;
+    if (driverCoords && order.pickup_lat != null && order.pickup_lng != null) {
+      toPickupKm = distanceKm(driverCoords, {
+        lat: Number(order.pickup_lat),
+        lng: Number(order.pickup_lng),
+      });
+    }
+    return {
+      tripKm,
+      toPickupKm,
+      eta: formatEta(estimateEtaMinutes(tripKm, "pending")),
+    };
+  }, [order, driverCoords?.lat, driverCoords?.lng]);
 
   if (!order) return null;
 
@@ -86,25 +100,34 @@ export function JobOfferModal({
 
           <View style={styles.topMeta}>
             <Text style={styles.eyebrow}>
-              {rideTypeFromNotes(order.notes)} · {left}s
+              New offer · {rideTypeFromNotes(order.notes)} · {left}s
             </Text>
             <Text style={styles.fee}>{formatCurrency(order.estimated_fee)}</Text>
+            <Text style={styles.feeSub}>Estimated payout</Text>
           </View>
 
           <View style={styles.stats}>
             <View style={styles.stat}>
               <Text style={styles.statVal}>
-                {meta.km ? `${meta.km.toFixed(1)} km` : "—"}
+                {meta.toPickupKm != null
+                  ? `${meta.toPickupKm.toFixed(1)} km`
+                  : meta.tripKm
+                    ? `${meta.tripKm.toFixed(1)} km`
+                    : "—"}
               </Text>
-              <Text style={styles.statLabel}>Distance</Text>
+              <Text style={styles.statLabel}>
+                {meta.toPickupKm != null ? "To pickup" : "Trip"}
+              </Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statVal}>
+                {meta.tripKm ? `${meta.tripKm.toFixed(1)} km` : "—"}
+              </Text>
+              <Text style={styles.statLabel}>Trip</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statVal}>{meta.eta}</Text>
               <Text style={styles.statLabel}>ETA</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statVal}>{order.city}</Text>
-              <Text style={styles.statLabel}>Area</Text>
             </View>
           </View>
 
@@ -120,7 +143,7 @@ export function JobOfferModal({
             </View>
             <View style={styles.rail} />
             <View style={styles.routeRow}>
-              <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+              <View style={[styles.dot, { backgroundColor: "#F59E0B" }]} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.routeLabel}>Drop-off</Text>
                 <Text style={styles.addr} numberOfLines={2}>
@@ -154,7 +177,7 @@ export function JobOfferModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.45)",
+    backgroundColor: "rgba(18,55,42,0.45)",
     justifyContent: "flex-end",
   },
   card: {
@@ -195,6 +218,7 @@ const styles = StyleSheet.create({
     color: colors.dark,
     letterSpacing: -1,
   },
+  feeSub: { color: colors.muted, fontWeight: "600", fontSize: 13 },
   stats: { flexDirection: "row", gap: 8 },
   stat: {
     flex: 1,
@@ -203,7 +227,12 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   statVal: { fontWeight: "900", color: colors.dark, fontSize: 14 },
-  statLabel: { color: colors.muted, fontSize: 11, marginTop: 2, fontWeight: "600" },
+  statLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: "600",
+  },
   route: {
     backgroundColor: colors.surface,
     borderRadius: 16,

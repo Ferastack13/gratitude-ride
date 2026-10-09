@@ -59,10 +59,10 @@ Details for each phase: [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
 ## Phase 3 — Discover
 
-- [ ] List nearby pending requests with distance (when online + GPS)
-- [ ] Empty / offline messaging
-- [ ] CTA: Go online (or open Home)
-- [ ] Optional: static boost/promo cards (placeholder OK)
+- [x] List nearby pending requests with distance (when online + GPS)
+- [x] Empty / offline messaging
+- [x] CTA: Go online (or open Home)
+- [x] Optional: static boost/promo cards (placeholder OK)
 
 ---
 

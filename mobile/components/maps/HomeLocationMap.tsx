@@ -19,6 +19,8 @@ type Props = {
   onRequestLocation?: () => void;
   height?: number;
   width?: number;
+  /** Extra markers (e.g. pending pickup) drawn with the live puck. */
+  markers?: { lat: number; lng: number; color?: string }[];
   /** Flush edges for map-first Home (presentation only). */
   flush?: boolean;
   /** Move zoom/recenter to top-right so a bottom sheet does not cover them. */
@@ -41,6 +43,7 @@ export function HomeLocationMap({
   onRequestLocation,
   height = 200,
   width,
+  markers = [],
   flush = false,
   controlsTop = false,
 }: Props) {
@@ -66,6 +69,18 @@ export function HomeLocationMap({
     onRequestLocation?.();
   }, [onRequestLocation]);
 
+  const mapMarkers = [
+    ...(coords
+      ? [{ lat: coords.lat, lng: coords.lng, color: "#1a73e8" }]
+      : []),
+    ...markers.filter(
+      (m) =>
+        !coords ||
+        Math.abs(m.lat - coords.lat) > 0.00001 ||
+        Math.abs(m.lng - coords.lng) > 0.00001
+    ),
+  ];
+
   return (
     <View
       style={[
@@ -80,11 +95,7 @@ export function HomeLocationMap({
         zoom={zoom}
         height={height}
         width={mapW}
-        markers={
-          coords
-            ? [{ lat: coords.lat, lng: coords.lng, color: "#1a73e8" }]
-            : []
-        }
+        markers={mapMarkers}
       />
 
       {coords ? (

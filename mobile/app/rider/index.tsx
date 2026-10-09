@@ -1,4 +1,4 @@
-import { RouteMap } from "@/components/maps/RouteMap";
+import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { JobOfferModal } from "@/components/workflow/JobOfferModal";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
@@ -28,15 +28,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 
 export default function DriverHomeScreen() {
   const { profile } = useAuth();
+  const { width: winW, height: winH } = useWindowDimensions();
   const [online, setOnline] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [riderId, setRiderId] = useState<string | null>(null);
   const [driverCoords, setDriverCoords] = useState<LatLng | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locMessage, setLocMessage] = useState<string | null>(null);
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [declinedIds, setDeclinedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -47,18 +51,22 @@ export default function DriverHomeScreen() {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Driver";
+  const mapHeight = Math.round(Math.min(420, Math.max(260, winH * 0.42)));
 
-  const mapCenter = useMemo(() => {
-    if (driverCoords) return driverCoords;
-    if (orders[0]?.pickup_lat != null) {
-      return {
-        lat: Number(orders[0].pickup_lat),
-        lng: Number(orders[0].pickup_lng),
-      };
+  const refreshLocation = useCallback(async () => {
+    setLocating(true);
+    setLocMessage(null);
+    const res = await resolveCurrentLocation();
+    setLocating(false);
+    if (res.ok) {
+      setDriverCoords(res.coords);
+      if (riderId) {
+        await updateRiderLocation(riderId, res.coords).catch(() => undefined);
+      }
+    } else {
+      setLocMessage(res.message);
     }
-    // Expo Go Carto tiles — Nigeria overview until GPS lands (never 0,0 ocean).
-    return { lat: 9.082, lng: 8.6753 };
-  }, [driverCoords, orders]);
+  }, [riderId]);
 
   const refreshPending = useCallback(
     async (coords: LatLng | null, declined: Set<string>) => {
@@ -133,8 +141,9 @@ export default function DriverHomeScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      load();
-    }, [load])
+      void load();
+      void refreshLocation();
+    }, [load, refreshLocation])
   );
 
   /** Real device GPS → riders.current_* while online or on an active trip. */
@@ -231,6 +240,25 @@ export default function DriverHomeScreen() {
 
   const preview = useMemo(() => orders[0], [orders]);
 
+  const offerMarkers = useMemo(() => {
+    if (!preview?.pickup_lat || preview.pickup_lng == null) return [];
+    const list = [
+      {
+        lat: Number(preview.pickup_lat),
+        lng: Number(preview.pickup_lng),
+        color: "#16A34A",
+      },
+    ];
+    if (preview.delivery_lat != null && preview.delivery_lng != null) {
+      list.push({
+        lat: Number(preview.delivery_lat),
+        lng: Number(preview.delivery_lng),
+        color: "#F59E0B",
+      });
+    }
+    return list;
+  }, [preview]);
+
   const toggleOnline = async () => {
     if (!profile?.id || toggling) return;
     setToggling(true);
@@ -318,34 +346,16 @@ export default function DriverHomeScreen() {
     <>
       <MapShell
         map={
-          <RouteMap
-            fullBleed
-            center={mapCenter}
-            pickup={
-              preview?.pickup_lat != null
-                ? {
-                    lat: Number(preview.pickup_lat),
-                    lng: Number(preview.pickup_lng),
-                    label: shortAddress(preview.pickup_address),
-                  }
-                : driverCoords
-                  ? {
-                      lat: driverCoords.lat,
-                      lng: driverCoords.lng,
-                      label: "You",
-                    }
-                  : undefined
-            }
-            dropoff={
-              preview?.delivery_lat != null
-                ? {
-                    lat: Number(preview.delivery_lat),
-                    lng: Number(preview.delivery_lng),
-                    label: shortAddress(preview.delivery_address),
-                  }
-                : undefined
-            }
-            delta={0.08}
+          <HomeLocationMap
+            coords={driverCoords}
+            loading={locating}
+            errorMessage={locMessage}
+            onRequestLocation={refreshLocation}
+            height={mapHeight}
+            width={winW}
+            flush
+            controlsTop
+            markers={offerMarkers}
           />
         }
         top={
@@ -400,17 +410,58 @@ export default function DriverHomeScreen() {
                     router.push(`/rider/active/${activeTripId}` as never)
                   }
                 >
-                  <Text style={styles.activeBtnText}>Resume trip</Text>
+                  <Text style={styles.activeBtnText}>Active trip</Text>
                 </Pressable>
               ) : null}
             </View>
+
+            <Text style={styles.mapHint}>
+              {driverCoords
+                ? "Live map around you — go online to get nearby ride offers."
+                : "Allow location so the map centers on you (works before any ride)."}
+            </Text>
+
+            <Pressable
+              style={[
+                styles.onlineBtn,
+                online ? styles.onlineBtnOn : styles.onlineBtnOff,
+                toggling && { opacity: 0.7 },
+              ]}
+              onPress={toggleOnline}
+              disabled={toggling || loading}
+            >
+              {toggling ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={online ? "radio-button-on" : "radio-button-off"}
+                    size={20}
+                    color={colors.white}
+                  />
+                  <Text style={styles.onlineBtnText}>
+                    {online ? "Go offline" : "Go online"}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            {online && !activeTripId ? (
+              <Text style={styles.listen}>
+                Listening for rides within about {DRIVER_MATCH_RADIUS_KM} km
+                {preview
+                  ? ` · next: ${shortAddress(preview.pickup_address)}`
+                  : ""}
+              </Text>
+            ) : null}
 
             {!online ? (
               <View style={styles.offlineCard}>
                 <Text style={styles.offlineTitle}>Ready when you are</Text>
                 <Text style={styles.offlineSub}>
                   Go online to receive nearby ride requests within about{" "}
-                  {DRIVER_MATCH_RADIUS_KM} km.
+                  {DRIVER_MATCH_RADIUS_KM} km. The map above already shows your
+                  area before any ride.
                 </Text>
               </View>
             ) : loading ? (
@@ -445,25 +496,6 @@ export default function DriverHomeScreen() {
                 </Text>
               </Pressable>
             )}
-
-            <Pressable
-              style={[styles.goBtn, online && styles.goBtnOff]}
-              onPress={toggleOnline}
-              disabled={toggling}
-            >
-              <Ionicons
-                name={online ? "pause" : "play"}
-                size={20}
-                color={colors.white}
-              />
-              <Text style={styles.goText}>
-                {toggling
-                  ? "Updating…"
-                  : online
-                    ? "Go offline"
-                    : "Go online"}
-              </Text>
-            </Pressable>
           </View>
         }
       />
@@ -516,6 +548,28 @@ const styles = StyleSheet.create({
     color: colors.dark,
     marginBottom: 6,
   },
+  mapHint: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  listen: {
+    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  onlineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: radii.full,
+    minHeight: 54,
+    ...shadows.float,
+  },
+  onlineBtnOn: { backgroundColor: colors.dark },
+  onlineBtnOff: { backgroundColor: colors.primary },
+  onlineBtnText: { color: colors.white, fontWeight: "900", fontSize: 16 },
   activeBtn: {
     backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
@@ -550,16 +604,4 @@ const styles = StyleSheet.create({
   queueTitle: { fontWeight: "900", color: colors.dark, fontSize: 14 },
   queueSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
   queueFee: { fontWeight: "900", color: colors.primaryDark },
-  goBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: radii.full,
-    minHeight: 56,
-    ...shadows.float,
-  },
-  goBtnOff: { backgroundColor: colors.dark },
-  goText: { color: colors.white, fontWeight: "900", fontSize: 17 },
 });

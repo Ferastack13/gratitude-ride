@@ -53,6 +53,12 @@ function slideLabel(status: Delivery["status"]) {
 const LIVE_STATUSES = new Set(["accepted", "picked_up", "in_transit"]);
 const NIGERIA = { lat: 9.082, lng: 8.6753 };
 
+/**
+ * Demo / fallback passenger contact while profiles may not have a phone yet.
+ * Call / WhatsApp / SMS on Active trip use this when the rider row has no phone.
+ */
+const DEMO_PASSENGER_PHONE = "09161346887";
+
 /** Only these forward steps are allowed from each status. */
 const ALLOWED_NEXT: Partial<Record<Delivery["status"], Delivery["status"]>> = {
   accepted: "picked_up",
@@ -95,8 +101,12 @@ export default function ActiveDeliveryScreen() {
           .eq("id", client.user_id)
           .maybeSingle();
         setClientName(user?.full_name?.split(" ")[0] ?? "Client");
-        setClientPhone(user?.phone ?? null);
+        setClientPhone(user?.phone?.trim() || DEMO_PASSENGER_PHONE);
+      } else {
+        setClientPhone(DEMO_PASSENGER_PHONE);
       }
+    } else {
+      setClientPhone(DEMO_PASSENGER_PHONE);
     }
     setLoading(false);
   }, [id]);
@@ -218,7 +228,22 @@ export default function ActiveDeliveryScreen() {
       Alert.alert("No coordinates", "This stop has no map pin yet.");
       return;
     }
-    void openNavigationChooser({ lat, lng, label: label ?? undefined });
+    Alert.alert(
+      toPickup ? "Navigate to pickup" : "Navigate to drop-off",
+      "This opens your phone’s maps app (Waze if installed, otherwise Google Maps / Apple Maps) with turn-by-turn directions to that stop. It leaves Gratitude Ride temporarily.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Open Maps",
+          onPress: () =>
+            void openNavigationChooser({
+              lat,
+              lng,
+              label: label ?? undefined,
+            }),
+        },
+      ]
+    );
   };
 
   const onHelp = () => {
@@ -343,8 +368,8 @@ export default function ActiveDeliveryScreen() {
 
           <ContactBar
             name={clientName}
-            phone={clientPhone}
-            subtitle="Passenger · call or WhatsApp if you need directions"
+            phone={clientPhone || DEMO_PASSENGER_PHONE}
+            subtitle="Passenger — Call, WhatsApp, or SMS this number"
             whatsAppMessage={`Hi ${clientName}, I'm your Gratitude Ride driver for ${delivery.tracking_id}.`}
           />
 

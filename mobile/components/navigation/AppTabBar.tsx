@@ -133,6 +133,16 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   const colors = useColors();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 12 : 8);
 
+  const focused = state.routes[state.index];
+  // Full-screen trip screens — hide dock so slide/actions are tappable
+  if (
+    focused?.name?.startsWith("active") ||
+    focused?.name?.startsWith("track") ||
+    focused?.name?.startsWith("trip")
+  ) {
+    return null;
+  }
+
   const tabs = state.routes.filter((route) => {
     const opts = descriptors[route.key]?.options as { href?: unknown };
     if (opts?.href === null) return false;

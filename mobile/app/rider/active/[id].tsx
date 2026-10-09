@@ -27,11 +27,13 @@ import {
   Alert,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function slideLabel(status: Delivery["status"]) {
   const next = nextStatus(status);
@@ -70,6 +72,7 @@ export default function ActiveDeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const { width: winW } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [clientName, setClientName] = useState("Client");
   const [clientPhone, setClientPhone] = useState<string | null>(null);
@@ -351,7 +354,16 @@ export default function ActiveDeliveryScreen() {
         </View>
       }
       sheet={
-        <View style={{ gap: 12 }}>
+        <ScrollView
+          style={{ maxHeight: "100%" }}
+          contentContainerStyle={{
+            gap: 12,
+            paddingBottom: Math.max(24, insets.bottom + 16),
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces
+        >
           <SheetHandle />
           <View style={styles.head}>
             <View>
@@ -410,7 +422,7 @@ export default function ActiveDeliveryScreen() {
           ) : delivery.status === "delivered" ? (
             <Text style={styles.done}>Trip completed</Text>
           ) : null}
-        </View>
+        </ScrollView>
       }
     />
   );

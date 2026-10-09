@@ -103,7 +103,12 @@ export default function RiderLayout() {
       <Tabs.Screen name="profile" options={{ title: "Menu" }} />
       <Tabs.Screen
         name="active/[id]"
-        options={{ href: null, headerShown: false, title: "Active" }}
+        options={{
+          href: null,
+          headerShown: false,
+          title: "Active",
+          tabBarStyle: { display: "none" },
+        }}
       />
     </Tabs>
   );

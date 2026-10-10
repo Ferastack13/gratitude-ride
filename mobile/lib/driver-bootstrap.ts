@@ -81,6 +81,20 @@ export async function ensureClientIdentity(
   accountType: "passenger" | "business"
 ) {
   await ensureClientId(userId);
+
+  // Don't leave the driver "online" after switching roles.
+  const { data: rider } = await supabase
+    .from("riders")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (rider?.id) {
+    await supabase
+      .from("riders")
+      .update({ is_available: false })
+      .eq("id", rider.id);
+  }
+
   const { error } = await supabase
     .from("users")
     .update({ role: "client" })
@@ -92,6 +106,32 @@ export async function ensureClientIdentity(
       account_type: accountType,
     },
   });
+}
+
+/** Persist vehicle type + license on the riders row. */
+export async function updateRiderVehicle(
+  userId: string,
+  patch: { vehicle_type: string; license_number?: string | null }
+): Promise<RiderRow> {
+  const rider = await getRiderByUserId(userId);
+  if (!rider) throw new Error("Driver profile not found.");
+
+  const { error } = await supabase
+    .from("riders")
+    .update({
+      vehicle_type: patch.vehicle_type.trim(),
+      license_number: patch.license_number?.trim() || null,
+    })
+    .eq("id", rider.id);
+  if (error) throw new Error(error.message);
+
+  await supabase.auth.updateUser({
+    data: { vehicle_type: patch.vehicle_type.trim() },
+  });
+
+  const next = await getRiderByUserId(userId);
+  if (!next) throw new Error("Couldn’t update vehicle.");
+  return next;
 }
 
 /**

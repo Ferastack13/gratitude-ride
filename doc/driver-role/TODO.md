@@ -44,16 +44,16 @@ Details for each phase: [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
 ## Phase 2 — Account shell
 
-- [ ] Menu header: photo/avatar, name, rating, vehicle, online chip
-- [ ] Profile screen: create / read / update (name, phone, email, avatar)
-- [ ] Wire ProfileAvatar on Menu (and Home if useful)
-- [ ] Vehicle screen: type, license/plate fields persisted
-- [ ] Wire Menu rows: Account, Vehicle (no dead taps)
-- [ ] Help → WhatsApp; Sign out
-- [ ] Switch account back to passenger
-- [ ] Inbox: load `notifications` for this user
-- [ ] Inbox Support tab stays WhatsApp
-- [ ] Align Menu styling with Gratitude palette
+- [x] Menu header: photo/avatar, name, rating, vehicle, online chip
+- [x] Profile screen: create / read / update (name, phone, email, avatar)
+- [x] Wire ProfileAvatar on Menu (and Home if useful)
+- [x] Vehicle screen: type, license/plate fields persisted
+- [x] Wire Menu rows: Account, Vehicle (no dead taps)
+- [x] Help → WhatsApp; Sign out
+- [x] Switch account back to passenger
+- [x] Inbox: load `notifications` for this user
+- [x] Inbox Support tab stays WhatsApp
+- [x] Align Menu styling with Gratitude palette
 
 ---
 

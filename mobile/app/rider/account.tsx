@@ -28,6 +28,7 @@ import {
 export default function RiderAccountScreen() {
   const { profile, session, refreshProfile } = useAuth();
   const colors = useColors();
+  const userId = session?.user.id ?? profile?.id;
   const [name, setName] = useState(profile?.full_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
   const [email, setEmail] = useState(
@@ -36,29 +37,31 @@ export default function RiderAccountScreen() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? null);
   const [saving, setSaving] = useState(false);
   const [loadingPhoto, setLoadingPhoto] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!profile?.id);
   const [exists, setExists] = useState(Boolean(profile?.id));
 
   const load = useCallback(async () => {
-    const userId = session?.user.id ?? profile?.id;
     if (!userId) return;
-    setLoading(true);
     try {
       const row = await getProfile(userId);
       if (row) {
         setExists(true);
-        setName(row.full_name ?? "");
-        setPhone(row.phone ?? "");
-        setEmail(row.email ?? "");
-        setAvatarUrl(row.avatar_url);
+        setName((prev) => (prev === (row.full_name ?? "") ? prev : row.full_name ?? ""));
+        setPhone((prev) => (prev === (row.phone ?? "") ? prev : row.phone ?? ""));
+        setEmail((prev) => (prev === (row.email ?? "") ? prev : row.email ?? ""));
+        setAvatarUrl((prev) =>
+          prev === row.avatar_url ? prev : row.avatar_url
+        );
       } else {
         setExists(false);
-        setName(session?.user.user_metadata?.full_name ?? "");
-        setPhone(session?.user.user_metadata?.phone ?? "");
-        setEmail(session?.user.email ?? "");
-        setAvatarUrl(null);
+        const metaName = String(session?.user.user_metadata?.full_name ?? "");
+        const metaPhone = String(session?.user.user_metadata?.phone ?? "");
+        const metaEmail = session?.user.email ?? "";
+        setName((prev) => (prev === metaName ? prev : metaName));
+        setPhone((prev) => (prev === metaPhone ? prev : metaPhone));
+        setEmail((prev) => (prev === metaEmail ? prev : metaEmail));
+        setAvatarUrl((prev) => (prev == null ? prev : null));
       }
-      await refreshProfile();
     } catch (err) {
       Alert.alert(
         "Couldn’t load profile",
@@ -67,7 +70,7 @@ export default function RiderAccountScreen() {
     } finally {
       setLoading(false);
     }
-  }, [profile?.id, refreshProfile, session]);
+  }, [session?.user.email, session?.user.user_metadata?.full_name, session?.user.user_metadata?.phone, userId]);
 
   useFocusEffect(
     useCallback(() => {

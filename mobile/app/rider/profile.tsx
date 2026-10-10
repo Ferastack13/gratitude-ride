@@ -20,8 +20,7 @@ import {
 } from "react-native";
 
 export default function RiderMenuScreen() {
-  const { profile, session, signOut, setAccountTypePreference, refreshProfile } =
-    useAuth();
+  const { profile, session, signOut, setAccountTypePreference } = useAuth();
   const colors = useColors();
   const [vehicle, setVehicle] = useState<string | null>(null);
   const [online, setOnline] = useState(false);
@@ -29,15 +28,14 @@ export default function RiderMenuScreen() {
   const [trips, setTrips] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const userId = session?.user.id;
+
   const load = useCallback(async () => {
-    const userId = session?.user.id;
     if (!userId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
     try {
-      await refreshProfile();
       const rider = await getRiderByUserId(userId);
       setVehicle(rider?.vehicle_type ?? null);
       setOnline(Boolean(rider?.is_available));
@@ -55,7 +53,7 @@ export default function RiderMenuScreen() {
     } finally {
       setLoading(false);
     }
-  }, [refreshProfile, session?.user.id]);
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {

@@ -1,8 +1,11 @@
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { Card } from "@/components/ui/Card";
+import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
+import { getRiderByUserId } from "@/lib/driver-bootstrap";
 import {
   createProfile,
   deleteAvatar,
@@ -39,11 +42,19 @@ export default function RiderAccountScreen() {
   const [loadingPhoto, setLoadingPhoto] = useState(false);
   const [loading, setLoading] = useState(!profile?.id);
   const [exists, setExists] = useState(Boolean(profile?.id));
+  const [vehicle, setVehicle] = useState<string | null>(null);
+  const [verified, setVerified] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const [trips, setTrips] = useState(0);
+  const [memberSince, setMemberSince] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
     try {
-      const row = await getProfile(userId);
+      const [row, rider] = await Promise.all([
+        getProfile(userId),
+        getRiderByUserId(userId).catch(() => null),
+      ]);
       if (row) {
         setExists(true);
         setName((prev) => (prev === (row.full_name ?? "") ? prev : row.full_name ?? ""));
@@ -52,6 +63,7 @@ export default function RiderAccountScreen() {
         setAvatarUrl((prev) =>
           prev === row.avatar_url ? prev : row.avatar_url
         );
+        setMemberSince(row.created_at ?? null);
       } else {
         setExists(false);
         const metaName = String(session?.user.user_metadata?.full_name ?? "");
@@ -62,6 +74,12 @@ export default function RiderAccountScreen() {
         setEmail((prev) => (prev === metaEmail ? prev : metaEmail));
         setAvatarUrl((prev) => (prev == null ? prev : null));
       }
+      setVehicle(rider?.vehicle_type ?? null);
+      setVerified(Boolean(rider?.is_verified));
+      setRating(
+        typeof rider?.rating === "number" ? Number(rider.rating) : null
+      );
+      setTrips(Number(rider?.total_deliveries || 0));
     } catch (err) {
       Alert.alert(
         "Couldn’t load profile",
@@ -228,11 +246,28 @@ export default function RiderAccountScreen() {
     }
   };
 
+  const ratingLabel =
+    rating != null && Number.isFinite(rating)
+      ? `${rating.toFixed(1)}★`
+      : "New driver";
+  const sinceLabel = memberSince
+    ? new Date(memberSince).toLocaleDateString(undefined, {
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+  const checklist = [
+    { ok: Boolean(avatarUrl), label: "Profile photo" },
+    { ok: phone.trim().length >= 7, label: "Phone number" },
+    { ok: Boolean(vehicle), label: "Vehicle details" },
+    { ok: verified, label: "Verified badge" },
+  ];
+
   return (
     <Screen>
       <ScreenHeader
         title="Account"
-        subtitle="Name, phone, email, photo"
+        subtitle="Your driver identity"
         onBack={() => router.back()}
       />
 
@@ -251,6 +286,14 @@ export default function RiderAccountScreen() {
             </View>
           ) : null}
         </View>
+        <Text style={[styles.heroName, { color: colors.dark }]}>
+          {name || "Your name"}
+        </Text>
+        <Text style={[styles.heroMeta, { color: colors.muted }]}>
+          {ratingLabel}
+          {trips ? ` · ${trips} trips` : ""}
+          {sinceLabel ? ` · Joined ${sinceLabel}` : ""}
+        </Text>
         <View style={styles.photoActions}>
           <Pressable
             style={[
@@ -281,10 +324,47 @@ export default function RiderAccountScreen() {
         </View>
       </View>
 
+      <Card
+        style={{
+          backgroundColor: verified ? colors.successSoft : colors.secondarySoft,
+        }}
+      >
+        <Text
+          style={[
+            styles.statusTitle,
+            { color: verified ? colors.success : colors.secondaryDark },
+          ]}
+        >
+          {verified ? "Verified driver" : "Finish your profile"}
+        </Text>
+        <Text style={[styles.statusBody, { color: colors.muted }]}>
+          {verified
+            ? "Passengers can trust your account. Keep phone and vehicle details current."
+            : "Complete the checklist below so we can review your account."}
+        </Text>
+        <View style={styles.checkList}>
+          {checklist.map((item) => (
+            <View key={item.label} style={styles.checkRow}>
+              <Ionicons
+                name={item.ok ? "checkmark-circle" : "ellipse-outline"}
+                size={16}
+                color={item.ok ? colors.success : colors.muted}
+              />
+              <Text style={[styles.checkText, { color: colors.dark }]}>
+                {item.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />
       ) : null}
 
+      <Text style={[styles.blockTitle, { color: colors.dark }]}>
+        Contact details
+      </Text>
       <Text style={[styles.label, { color: colors.muted }]}>Full name</Text>
       <TextInput
         value={name}
@@ -342,9 +422,33 @@ export default function RiderAccountScreen() {
         disabled={saving}
       >
         <Text style={styles.saveText}>
-          {saving ? "Saving…" : exists ? "Update profile" : "Create profile"}
+          {saving ? "Saving…" : exists ? "Save changes" : "Create profile"}
         </Text>
       </Pressable>
+
+      <Text style={[styles.blockTitle, { color: colors.dark }]}>
+        Linked driver info
+      </Text>
+      <Card padded={false} style={{ paddingHorizontal: 12 }}>
+        <ListRow
+          icon="car-outline"
+          title="Vehicle"
+          subtitle={vehicle ?? "Add vehicle type and license"}
+          onPress={() => router.push("/rider/vehicle" as never)}
+        />
+        <ListRow
+          icon="card-outline"
+          title="Payout details"
+          subtitle="Bank account for cash out"
+          onPress={() => router.push("/rider/payouts" as never)}
+        />
+        <ListRow
+          icon="settings-outline"
+          title="Settings"
+          subtitle="Alerts, appearance, privacy"
+          onPress={() => router.push("/rider/settings" as never)}
+        />
+      </Card>
     </Screen>
   );
 }
@@ -354,8 +458,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 4,
     paddingBottom: 4,
-    gap: 12,
+    gap: 8,
   },
+  heroName: { fontSize: 20, fontWeight: "900", marginTop: 4 },
+  heroMeta: { fontSize: 13, fontWeight: "600", textAlign: "center" },
   photoBusy: {
     position: "absolute",
     top: 0,
@@ -372,6 +478,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     justifyContent: "center",
+    marginTop: 4,
   },
   photoBtn: {
     flexDirection: "row",
@@ -383,6 +490,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   photoBtnText: { fontWeight: "700", fontSize: 13 },
+  statusTitle: { fontWeight: "900", fontSize: 15 },
+  statusBody: { fontSize: 13, lineHeight: 18, marginTop: 4 },
+  checkList: { marginTop: 10, gap: 6 },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  checkText: { fontSize: 13, fontWeight: "700" },
+  blockTitle: { fontSize: 16, fontWeight: "900", marginTop: 8 },
   label: { fontSize: 12, fontWeight: "700", marginTop: 4 },
   input: {
     borderWidth: 1,

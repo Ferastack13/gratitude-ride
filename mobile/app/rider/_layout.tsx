@@ -114,6 +114,10 @@ export default function RiderLayout() {
         options={{ href: null, headerShown: false, title: "Payouts" }}
       />
       <Tabs.Screen
+        name="settings"
+        options={{ href: null, headerShown: false, title: "Settings" }}
+      />
+      <Tabs.Screen
         name="active/[id]"
         options={{
           href: null,

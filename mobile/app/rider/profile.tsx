@@ -24,6 +24,7 @@ export default function RiderMenuScreen() {
   const colors = useColors();
   const [vehicle, setVehicle] = useState<string | null>(null);
   const [online, setOnline] = useState(false);
+  const [verified, setVerified] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [trips, setTrips] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,7 @@ export default function RiderMenuScreen() {
       const rider = await getRiderByUserId(userId);
       setVehicle(rider?.vehicle_type ?? null);
       setOnline(Boolean(rider?.is_available));
+      setVerified(Boolean(rider?.is_verified));
       setRating(
         typeof rider?.rating === "number" ? Number(rider.rating) : null
       );
@@ -50,6 +52,7 @@ export default function RiderMenuScreen() {
     } catch {
       setVehicle(null);
       setOnline(false);
+      setVerified(false);
     } finally {
       setLoading(false);
     }
@@ -154,6 +157,25 @@ export default function RiderMenuScreen() {
                 </Text>
               </View>
             ) : null}
+            <View
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: verified
+                    ? colors.successSoft
+                    : colors.surfaceAlt,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: verified ? colors.success : colors.muted },
+                ]}
+              >
+                {verified ? "Verified" : "Pending review"}
+              </Text>
+            </View>
           </View>
         </View>
       </Pressable>

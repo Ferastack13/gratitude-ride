@@ -68,14 +68,14 @@ Details for each phase: [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
 ## Phase 4 — Earnings & trust
 
-- [ ] Earnings: today / week / all-time totals
-- [ ] Trip history list + detail
-- [ ] Pull-to-refresh
-- [ ] Payouts v1: show balance + “coming soon”
-- [ ] Capture bank / payout details form (store only)
-- [ ] Verification UI using `is_verified` (pending / verified)
-- [ ] Show rating + delivery count on Menu
-- [ ] Optional post-trip rating prompt for passenger (if not already)
+- [x] Earnings: today / week / all-time totals
+- [x] Trip history list + detail
+- [x] Pull-to-refresh
+- [x] Payouts v1: show balance + “coming soon”
+- [x] Capture bank / payout details form (store only)
+- [x] Verification UI using `is_verified` (pending / verified)
+- [x] Show rating + delivery count on Menu
+- [x] Optional post-trip rating prompt for passenger (if not already)
 
 ---
 

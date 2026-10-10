@@ -91,6 +91,7 @@ export function HomeLocationMap({
       collapsable={false}
     >
       <OsmRasterMap
+        key={coords ? "live" : "empty"}
         center={center}
         zoom={zoom}
         height={height}

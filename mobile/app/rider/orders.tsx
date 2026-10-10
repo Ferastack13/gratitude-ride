@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
 import { distanceKm } from "@/lib/geo";
-import { getDriverWorkingArea } from "@/lib/driver-base-location";
+import { resolveCurrentLocation } from "@/lib/location";
 import {
   DRIVER_MATCH_RADIUS_KM,
   filterNearbyPending,
@@ -78,9 +78,9 @@ export default function DriverDiscoverScreen() {
       setOnline(Boolean(rider?.is_available));
 
       let here: LatLng | null = null;
-      const area = await getDriverWorkingArea();
-      if (area) {
-        here = { lat: area.lat, lng: area.lng };
+      const live = await resolveCurrentLocation();
+      if (live.ok) {
+        here = live.coords;
         await updateRiderLocation(id, here).catch(() => undefined);
       } else if (rider?.current_lat != null && rider?.current_lng != null) {
         here = {
@@ -146,24 +146,12 @@ export default function DriverDiscoverScreen() {
     try {
       const id = riderId ?? (await ensureRiderId(profile.id));
       setRiderId(id);
-      const area = await getDriverWorkingArea();
-      if (area) {
-        const here = { lat: area.lat, lng: area.lng };
-        setCoords(here);
-        await updateRiderLocation(id, here);
-      } else if (!coords) {
-        Alert.alert(
-          "Set your working area",
-          "Search for where you’re driving today. GPS is not required.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Choose area",
-              onPress: () => router.push("/rider/set-location" as never),
-            },
-          ]
-        );
-        return;
+      const live = await resolveCurrentLocation();
+      if (live.ok) {
+        setCoords(live.coords);
+        await updateRiderLocation(id, live.coords);
+      } else if (coords) {
+        await updateRiderLocation(id, coords);
       }
       const { error } = await supabase
         .from("riders")

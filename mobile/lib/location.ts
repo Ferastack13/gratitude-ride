@@ -124,16 +124,34 @@ async function readLastKnown() {
 }
 
 async function readGps(label: string) {
-  const pos = await Promise.race([
-    Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-      mayShowUserSettingsDialog: true,
-    }),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("gps-timeout")), 12_000)
-    ),
-  ]);
-  return logFix(label, pos);
+  // Expo Go / Android often fails High accuracy — cascade down until one works.
+  const attempts: { accuracy: Location.Accuracy; timeout: number }[] = [
+    { accuracy: Location.Accuracy.Balanced, timeout: 14_000 },
+    { accuracy: Location.Accuracy.Low, timeout: 10_000 },
+    { accuracy: Location.Accuracy.Lowest, timeout: 8_000 },
+  ];
+  let lastErr: unknown;
+  for (const attempt of attempts) {
+    try {
+      const pos = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: attempt.accuracy,
+          mayShowUserSettingsDialog: true,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("gps-timeout")),
+            attempt.timeout
+          )
+        ),
+      ]);
+      return logFix(`${label}:${attempt.accuracy}`, pos);
+    } catch (e) {
+      lastErr = e;
+      LOG(`${label}:retry-failed`, attempt.accuracy, e);
+    }
+  }
+  throw lastErr ?? new Error("gps-failed");
 }
 
 /** Request permission and resolve the device GPS into a readable place. Never invents a city. */

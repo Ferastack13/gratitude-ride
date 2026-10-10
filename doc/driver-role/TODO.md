@@ -81,7 +81,7 @@ Details for each phase: [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
 ## Phase 5 — Ops & polish
 
-- [ ] Document Expo Go location limits for drivers
+- [x] Document Expo Go location limits for drivers — Home uses searchable working area; GPS optional (active trip only)
 - [ ] Push notifications plan for new offers (implement when ready)
 - [ ] Safety: SOS or share-trip action on active trip
 - [ ] Basic metrics logging (online time / accept / decline) — optional

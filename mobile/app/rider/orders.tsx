@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
 import { distanceKm } from "@/lib/geo";
-import { resolveCurrentLocation } from "@/lib/location";
+import { getDriverWorkingArea } from "@/lib/driver-base-location";
 import {
   DRIVER_MATCH_RADIUS_KM,
   filterNearbyPending,
@@ -78,17 +78,15 @@ export default function DriverDiscoverScreen() {
       setOnline(Boolean(rider?.is_available));
 
       let here: LatLng | null = null;
-      if (rider?.current_lat != null && rider?.current_lng != null) {
+      const area = await getDriverWorkingArea();
+      if (area) {
+        here = { lat: area.lat, lng: area.lng };
+        await updateRiderLocation(id, here).catch(() => undefined);
+      } else if (rider?.current_lat != null && rider?.current_lng != null) {
         here = {
           lat: Number(rider.current_lat),
           lng: Number(rider.current_lng),
         };
-      } else {
-        const res = await resolveCurrentLocation();
-        if (res.ok) {
-          here = res.coords;
-          await updateRiderLocation(id, res.coords).catch(() => undefined);
-        }
       }
       setCoords(here);
 
@@ -148,10 +146,24 @@ export default function DriverDiscoverScreen() {
     try {
       const id = riderId ?? (await ensureRiderId(profile.id));
       setRiderId(id);
-      const res = await resolveCurrentLocation();
-      if (res.ok) {
-        setCoords(res.coords);
-        await updateRiderLocation(id, res.coords);
+      const area = await getDriverWorkingArea();
+      if (area) {
+        const here = { lat: area.lat, lng: area.lng };
+        setCoords(here);
+        await updateRiderLocation(id, here);
+      } else if (!coords) {
+        Alert.alert(
+          "Set your working area",
+          "Search for where you’re driving today. GPS is not required.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Choose area",
+              onPress: () => router.push("/rider/set-location" as never),
+            },
+          ]
+        );
+        return;
       }
       const { error } = await supabase
         .from("riders")
@@ -162,7 +174,7 @@ export default function DriverDiscoverScreen() {
       await load();
       Alert.alert(
         "You're online",
-        "Nearby offers will also appear on Home. Stay in a busy area.",
+        "Nearby offers will also appear on Home.",
         [
           { text: "Stay here", style: "cancel" },
           {

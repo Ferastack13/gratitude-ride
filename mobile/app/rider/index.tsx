@@ -6,8 +6,9 @@ import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
-import { resolveCurrentLocation, startDeviceLocationWatch } from "@/lib/location";
+import { getDriverWorkingArea } from "@/lib/driver-base-location";
 import { startDriverLocationPublisher } from "@/lib/driver-location";
+import type { LivePlace } from "@/lib/places";
 import {
   acceptDeliveryAtomic,
   declineDeliveryForRider,
@@ -39,7 +40,7 @@ export default function DriverHomeScreen() {
   const [toggling, setToggling] = useState(false);
   const [riderId, setRiderId] = useState<string | null>(null);
   const [driverCoords, setDriverCoords] = useState<LatLng | null>(null);
-  const [locating, setLocating] = useState(false);
+  const [workingArea, setWorkingArea] = useState<LivePlace | null>(null);
   const [locMessage, setLocMessage] = useState<string | null>(null);
   const [orders, setOrders] = useState<Delivery[]>([]);
   const [declinedIds, setDeclinedIds] = useState<Set<string>>(new Set());
@@ -53,20 +54,14 @@ export default function DriverHomeScreen() {
   const firstName = profile?.full_name?.split(" ")[0] ?? "Driver";
   const mapHeight = Math.round(Math.min(420, Math.max(260, winH * 0.42)));
 
-  const refreshLocation = useCallback(async () => {
-    setLocating(true);
-    setLocMessage(null);
-    const res = await resolveCurrentLocation();
-    setLocating(false);
-    if (res.ok) {
-      setDriverCoords(res.coords);
-      if (riderId) {
-        await updateRiderLocation(riderId, res.coords).catch(() => undefined);
-      }
-    } else {
-      setLocMessage(res.message);
-    }
-  }, [riderId]);
+  const openSetLocation = useCallback(() => {
+    router.push("/rider/set-location" as never);
+  }, []);
+
+  const refreshLocation = useCallback(() => {
+    // Recenter uses saved working area — not GPS.
+    openSetLocation();
+  }, [openSetLocation]);
 
   const refreshPending = useCallback(
     async (coords: LatLng | null, declined: Set<string>) => {
@@ -96,10 +91,12 @@ export default function DriverHomeScreen() {
       .maybeSingle();
     setOnline(Boolean(rider?.is_available));
 
+    // Primary: searched/saved working area (no GPS required).
     let coords: LatLng | null = null;
-    const live = await resolveCurrentLocation();
-    if (live.ok) {
-      coords = live.coords;
+    const area = await getDriverWorkingArea();
+    setWorkingArea(area);
+    if (area) {
+      coords = { lat: area.lat, lng: area.lng };
       setDriverCoords(coords);
       setLocMessage(null);
       await updateRiderLocation(id, coords).catch(() => undefined);
@@ -109,9 +106,9 @@ export default function DriverHomeScreen() {
         lng: Number(rider.current_lng),
       };
       setDriverCoords(coords);
-      setLocMessage(live.message);
+      setLocMessage(null);
     } else {
-      setLocMessage(live.message);
+      setLocMessage("Set your working area so the map and nearby jobs know where you are.");
     }
 
     const declined = await loadMyDeclinedDeliveryIds(id).catch(
@@ -155,55 +152,11 @@ export default function DriverHomeScreen() {
   );
 
   /**
-   * Live device GPS while Home is focused (same robust watch+poll as passenger).
-   * Map updates even when offline — DB publish still happens when online / on trip.
+   * Optional GPS publisher only while on an active trip (passenger tracking).
+   * Day-to-day Home map uses the searched working area — no location permission needed.
    */
-  useFocusEffect(
-    useCallback(() => {
-      let stopped = false;
-      const stopRef = { current: undefined as undefined | (() => void) };
-
-      setLocating(true);
-      setLocMessage(null);
-
-      void (async () => {
-        const watch = await startDeviceLocationWatch({
-          onUpdate: (place) => {
-            if (stopped) return;
-            const coords = { lat: place.lat, lng: place.lng };
-            setDriverCoords(coords);
-            setLocating(false);
-            setLocMessage(null);
-          },
-          onError: (message) => {
-            if (stopped) return;
-            setLocating(false);
-            setLocMessage(message);
-          },
-        });
-        if (stopped) {
-          if ("stop" in watch) watch.stop();
-          return;
-        }
-        if ("error" in watch) {
-          setLocating(false);
-          setLocMessage(watch.error);
-          return;
-        }
-        stopRef.current = watch.stop;
-      })();
-
-      return () => {
-        stopped = true;
-        stopRef.current?.();
-      };
-    }, [])
-  );
-
-  /** Persist GPS → riders.current_* while online or on an active trip. */
   useEffect(() => {
-    const shouldPublish = Boolean(riderId && (online || activeTripId));
-    if (!shouldPublish || !riderId) return;
+    if (!riderId || !activeTripId) return;
 
     let stop: (() => void) | undefined;
     let cancelled = false;
@@ -216,9 +169,7 @@ export default function DriverHomeScreen() {
         if ("stop" in result) result.stop();
         return;
       }
-      if ("error" in result) {
-        return;
-      }
+      if ("error" in result) return;
       stop = result.stop;
     })();
 
@@ -226,7 +177,7 @@ export default function DriverHomeScreen() {
       cancelled = true;
       stop?.();
     };
-  }, [online, riderId, activeTripId]);
+  }, [riderId, activeTripId]);
 
   /** Realtime: new/updated pending deliveries while online. */
   useEffect(() => {
@@ -319,16 +270,24 @@ export default function DriverHomeScreen() {
 
       let coordsForMatch = driverCoords;
       if (next) {
-        const res = await resolveCurrentLocation();
-        if (res.ok) {
-          coordsForMatch = res.coords;
-          setDriverCoords(res.coords);
-          await updateRiderLocation(id, res.coords);
-        } else {
+        const area = workingArea ?? (await getDriverWorkingArea());
+        if (area) {
+          coordsForMatch = { lat: area.lat, lng: area.lng };
+          setWorkingArea(area);
+          setDriverCoords(coordsForMatch);
+          await updateRiderLocation(id, coordsForMatch);
+        } else if (!coordsForMatch) {
           Alert.alert(
-            "Location recommended",
-            "Enable GPS so we can send you nearby ride requests. You can still go online."
+            "Set your working area",
+            "Search for where you’re driving today so we can show nearby jobs. GPS is not required.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Choose area", onPress: openSetLocation },
+            ]
           );
+          return;
+        } else {
+          await updateRiderLocation(id, coordsForMatch);
         }
       }
 
@@ -400,7 +359,7 @@ export default function DriverHomeScreen() {
         map={
           <HomeLocationMap
             coords={driverCoords}
-            loading={locating}
+            loading={loading && !driverCoords}
             errorMessage={locMessage}
             onRequestLocation={refreshLocation}
             height={mapHeight}
@@ -484,12 +443,30 @@ export default function DriverHomeScreen() {
               </Pressable>
             ) : null}
 
+            <Pressable
+              style={styles.areaChip}
+              onPress={openSetLocation}
+            >
+              <Ionicons name="location" size={16} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.areaLabel}>Working area</Text>
+                <Text style={styles.areaValue} numberOfLines={1}>
+                  {workingArea
+                    ? workingArea.title
+                    : driverCoords
+                      ? "Saved map pin — tap to change"
+                      : "Tap to search a place (no GPS needed)"}
+                </Text>
+              </View>
+              <Text style={styles.areaChange}>Change</Text>
+            </Pressable>
+
             <Text style={styles.mapHint}>
               {activeTripId
                 ? "Finish your active trip before taking a new offer."
                 : driverCoords
-                  ? "Live map around you — go online to get nearby ride offers."
-                  : "Allow location so the map centers on you (works before any ride)."}
+                  ? "Map shows your working area — go online for nearby offers."
+                  : "Set a working area by search so the map and jobs know where you are."}
             </Text>
 
             {!activeTripId ? (
@@ -621,6 +598,34 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: colors.dark,
     marginBottom: 6,
+  },
+  areaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  areaLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary,
+    textTransform: "uppercase",
+  },
+  areaValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.dark,
+    marginTop: 2,
+  },
+  areaChange: {
+    fontWeight: "800",
+    fontSize: 13,
+    color: colors.primary,
   },
   mapHint: {
     color: colors.muted,

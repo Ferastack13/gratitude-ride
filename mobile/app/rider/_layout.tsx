@@ -118,6 +118,10 @@ export default function RiderLayout() {
         options={{ href: null, headerShown: false, title: "Settings" }}
       />
       <Tabs.Screen
+        name="set-location"
+        options={{ href: null, headerShown: false, title: "Working area" }}
+      />
+      <Tabs.Screen
         name="active/[id]"
         options={{
           href: null,

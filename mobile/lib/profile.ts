@@ -1,10 +1,51 @@
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
 import type { User } from "@supabase/supabase-js";
+import { EncodingType, readAsStringAsync } from "expo-file-system/legacy";
 
 export type UserProfile = Tables<"users">;
 
 const AVATAR_BUCKET = "avatars";
+
+/** RN `fetch(file://…)` often fails; read via FileSystem instead. */
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function readLocalImageBytes(localUri: string): Promise<ArrayBuffer> {
+  try {
+    const response = await fetch(localUri);
+    if (response.ok) {
+      return await response.arrayBuffer();
+    }
+  } catch {
+    // Expected on many Expo Go / Android file URIs.
+  }
+
+  try {
+    const base64 = await readAsStringAsync(localUri, {
+      encoding: EncodingType.Base64,
+    });
+    if (base64) return base64ToArrayBuffer(base64);
+  } catch {
+    // Fall through with a clear error.
+  }
+
+  throw new Error("Couldn’t read that photo.");
+}
+
+function guessImageContentType(uri: string) {
+  const lower = uri.toLowerCase();
+  if (lower.includes(".png")) return "image/png";
+  if (lower.includes(".webp")) return "image/webp";
+  if (lower.includes(".heic") || lower.includes(".heif")) return "image/heic";
+  return "image/jpeg";
+}
 
 function fallbackName(user: User) {
   return (
@@ -98,14 +139,10 @@ export function publicAvatarUrl(path: string) {
 }
 
 export async function uploadAvatar(userId: string, localUri: string) {
-  const response = await fetch(localUri);
-  if (!response.ok) {
-    throw new Error("Couldn’t read that photo.");
-  }
-  const bytes = await response.arrayBuffer();
+  const bytes = await readLocalImageBytes(localUri);
   const path = avatarObjectPath(userId);
   const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(path, bytes, {
-    contentType: "image/jpeg",
+    contentType: guessImageContentType(localUri),
     upsert: true,
   });
   if (error) throw new Error(error.message);

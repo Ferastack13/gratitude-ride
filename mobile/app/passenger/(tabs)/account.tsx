@@ -2,6 +2,7 @@ import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
+import { promptAppReview } from "@/lib/app-review";
 import { switchToDriverMode } from "@/lib/driver-bootstrap";
 import { getAppSettings, SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -254,6 +255,12 @@ export default function PassengerAccountScreen() {
             title="Manage Gratitude account"
             subtitle="Create, update, or delete your profile"
             onPress={() => router.push("/passenger/settings/profile" as never)}
+          />
+          <Row
+            icon="star-outline"
+            title="Rate Gratitude Ride"
+            subtitle="Leave an app review or send feedback"
+            onPress={() => void promptAppReview()}
           />
           <Row
             icon="information-circle-outline"

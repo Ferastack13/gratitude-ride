@@ -6,7 +6,7 @@ import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
 import { formatCurrency, shortAddress } from "@/lib/format";
-import { resolveCurrentLocation } from "@/lib/location";
+import { resolveCurrentLocation, startDeviceLocationWatch } from "@/lib/location";
 import { startDriverLocationPublisher } from "@/lib/driver-location";
 import {
   acceptDeliveryAtomic,
@@ -97,12 +97,21 @@ export default function DriverHomeScreen() {
     setOnline(Boolean(rider?.is_available));
 
     let coords: LatLng | null = null;
-    if (rider?.current_lat != null && rider?.current_lng != null) {
+    const live = await resolveCurrentLocation();
+    if (live.ok) {
+      coords = live.coords;
+      setDriverCoords(coords);
+      setLocMessage(null);
+      await updateRiderLocation(id, coords).catch(() => undefined);
+    } else if (rider?.current_lat != null && rider?.current_lng != null) {
       coords = {
         lat: Number(rider.current_lat),
         lng: Number(rider.current_lng),
       };
       setDriverCoords(coords);
+      setLocMessage(live.message);
+    } else {
+      setLocMessage(live.message);
     }
 
     const declined = await loadMyDeclinedDeliveryIds(id).catch(
@@ -142,11 +151,56 @@ export default function DriverHomeScreen() {
     useCallback(() => {
       setLoading(true);
       void load();
-      void refreshLocation();
-    }, [load, refreshLocation])
+    }, [load])
   );
 
-  /** Real device GPS → riders.current_* while online or on an active trip. */
+  /**
+   * Live device GPS while Home is focused (same robust watch+poll as passenger).
+   * Map updates even when offline — DB publish still happens when online / on trip.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      let stopped = false;
+      const stopRef = { current: undefined as undefined | (() => void) };
+
+      setLocating(true);
+      setLocMessage(null);
+
+      void (async () => {
+        const watch = await startDeviceLocationWatch({
+          onUpdate: (place) => {
+            if (stopped) return;
+            const coords = { lat: place.lat, lng: place.lng };
+            setDriverCoords(coords);
+            setLocating(false);
+            setLocMessage(null);
+          },
+          onError: (message) => {
+            if (stopped) return;
+            setLocating(false);
+            setLocMessage(message);
+          },
+        });
+        if (stopped) {
+          if ("stop" in watch) watch.stop();
+          return;
+        }
+        if ("error" in watch) {
+          setLocating(false);
+          setLocMessage(watch.error);
+          return;
+        }
+        stopRef.current = watch.stop;
+      })();
+
+      return () => {
+        stopped = true;
+        stopRef.current?.();
+      };
+    }, [])
+  );
+
+  /** Persist GPS → riders.current_* while online or on an active trip. */
   useEffect(() => {
     const shouldPublish = Boolean(riderId && (online || activeTripId));
     if (!shouldPublish || !riderId) return;
@@ -163,20 +217,16 @@ export default function DriverHomeScreen() {
         return;
       }
       if ("error" in result) {
-        // Permission denied — matching still works loosely; passenger may wait for GPS
         return;
       }
       stop = result.stop;
-      await refreshPending(driverCoords, declinedIds);
     })();
 
     return () => {
       cancelled = true;
       stop?.();
     };
-    // Intentionally omit driverCoords/declinedIds — refresh on focus / realtime handles offers
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, riderId, activeTripId, refreshPending]);
+  }, [online, riderId, activeTripId]);
 
   /** Realtime: new/updated pending deliveries while online. */
   useEffect(() => {
@@ -267,9 +317,11 @@ export default function DriverHomeScreen() {
       setRiderId(id);
       const next = !online;
 
+      let coordsForMatch = driverCoords;
       if (next) {
         const res = await resolveCurrentLocation();
         if (res.ok) {
+          coordsForMatch = res.coords;
           setDriverCoords(res.coords);
           await updateRiderLocation(id, res.coords);
         } else {
@@ -292,7 +344,7 @@ export default function DriverHomeScreen() {
       } else {
         const declined = await loadMyDeclinedDeliveryIds(id);
         setDeclinedIds(declined);
-        await refreshPending(driverCoords, declined);
+        await refreshPending(coordsForMatch, declined);
       }
     } catch (err) {
       Alert.alert(

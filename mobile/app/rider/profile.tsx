@@ -5,6 +5,7 @@ import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
+import { promptAppReview } from "@/lib/app-review";
 import { getRiderByUserId } from "@/lib/driver-bootstrap";
 import { formatCurrency } from "@/lib/format";
 import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
@@ -342,6 +343,12 @@ export default function RiderMenuScreen() {
           title="Help & support"
           subtitle="Chat on WhatsApp"
           onPress={() => Linking.openURL(SENIOR_SUPPORT_WHATSAPP)}
+        />
+        <ListRow
+          icon="star-outline"
+          title="Rate Gratitude Ride"
+          subtitle="App Store / Play review or feedback"
+          onPress={() => void promptAppReview()}
         />
         <ListRow
           icon="document-text-outline"

@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
@@ -100,7 +101,9 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <Text style={styles.brand}>Gratitude Ride</Text>
+      <View style={styles.brandWrap}>
+        <BrandLogo size={112} />
+      </View>
       <Text style={styles.title}>Create account</Text>
       <Text style={styles.subtitle}>
         Joining as {accountTypeLabel(accountType)}
@@ -174,13 +177,7 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    color: colors.primary,
-    fontWeight: "800",
-    fontSize: 14,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
+  brandWrap: { alignItems: "center", marginBottom: 4 },
   title: { fontSize: 32, fontWeight: "800", color: colors.dark },
   subtitle: { fontSize: 15, color: colors.muted },
   error: {

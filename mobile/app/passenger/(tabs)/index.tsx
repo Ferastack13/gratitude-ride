@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Badge } from "@/components/ui/Badge";
 import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
@@ -263,6 +264,7 @@ export default function PassengerHomeScreen() {
 
         <View style={styles.mapHeader} pointerEvents="box-none">
           <View style={styles.brandPill}>
+            <BrandLogo size={36} />
             <Text style={styles.brand}>Gratitude Ride</Text>
           </View>
           <Pressable
@@ -528,9 +530,12 @@ function makeStyles(colors: ThemeColors) {
     zIndex: 4,
   },
   brandPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     backgroundColor: "rgba(255,255,255,0.94)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: radii.full,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,

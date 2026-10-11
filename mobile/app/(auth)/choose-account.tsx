@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { colors, radii, shadows } from "@/constants/theme";
 import {
@@ -65,9 +66,7 @@ export default function ChooseAccountTypeScreen() {
         </Pressable>
 
         <View style={styles.brandRow}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoG}>G</Text>
-          </View>
+          <BrandLogo size={56} />
           <View>
             <Text style={styles.brand}>Gratitude Ride</Text>
             <Text style={styles.tagline}>Ride · Drive · Deliver · Grow</Text>

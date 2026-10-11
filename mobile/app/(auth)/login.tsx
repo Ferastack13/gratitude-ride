@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
@@ -49,7 +50,9 @@ export default function LoginScreen() {
 
   return (
     <Screen>
-      <Text style={styles.brand}>Gratitude Ride</Text>
+      <View style={styles.brandWrap}>
+        <BrandLogo size={112} />
+      </View>
       <Text style={styles.title}>Welcome back</Text>
       <Text style={styles.subtitle}>Sign in to continue your journey</Text>
 
@@ -94,13 +97,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  brand: {
-    color: colors.primary,
-    fontWeight: "800",
-    fontSize: 14,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
+  brandWrap: { alignItems: "center", marginBottom: 4 },
   title: { fontSize: 32, fontWeight: "800", color: colors.dark },
   subtitle: { fontSize: 15, color: colors.muted, marginBottom: 8 },
   error: {

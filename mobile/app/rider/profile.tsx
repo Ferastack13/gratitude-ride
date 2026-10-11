@@ -173,8 +173,8 @@ export default function RiderMenuScreen() {
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={[styles.name, { color: colors.dark }]}>{name}</Text>
           <Text style={[styles.meta, { color: colors.muted }]}>{phone}</Text>
-          <Text style={[styles.meta, { color: colors.muted }]} numberOfLines={1}>
-            {profile?.email ?? "Tap to edit profile"}
+          <Text style={[styles.meta, { color: colors.primary }]} numberOfLines={1}>
+            Tap to edit profile →
           </Text>
           <View style={styles.chips}>
             <View
@@ -292,12 +292,12 @@ export default function RiderMenuScreen() {
         </Pressable>
       </Card>
 
-      <SectionTitle label="Driver" />
+      <SectionTitle label="All shortcuts (one place)" />
       <Card padded={false} style={{ paddingHorizontal: 12 }}>
         <ListRow
           icon="create-outline"
           title="Edit profile"
-          subtitle="Photo, name, phone, email"
+          subtitle="Photo, name, phone, email only — not another menu"
           onPress={() => router.push("/rider/account" as never)}
         />
         <ListRow

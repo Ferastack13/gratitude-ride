@@ -1,6 +1,5 @@
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Card } from "@/components/ui/Card";
-import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { useAuth } from "@/context/auth";
@@ -266,8 +265,8 @@ export default function RiderAccountScreen() {
   return (
     <Screen>
       <ScreenHeader
-        title="Account"
-        subtitle="Your driver identity"
+        title="Edit profile"
+        subtitle="Photo, name, phone, email"
         onBack={() => router.back()}
       />
 
@@ -425,30 +424,6 @@ export default function RiderAccountScreen() {
           {saving ? "Saving…" : exists ? "Save changes" : "Create profile"}
         </Text>
       </Pressable>
-
-      <Text style={[styles.blockTitle, { color: colors.dark }]}>
-        Linked driver info
-      </Text>
-      <Card padded={false} style={{ paddingHorizontal: 12 }}>
-        <ListRow
-          icon="car-outline"
-          title="Vehicle"
-          subtitle={vehicle ?? "Add vehicle type and license"}
-          onPress={() => router.push("/rider/vehicle" as never)}
-        />
-        <ListRow
-          icon="card-outline"
-          title="Payout details"
-          subtitle="Bank account for cash out"
-          onPress={() => router.push("/rider/payouts" as never)}
-        />
-        <ListRow
-          icon="settings-outline"
-          title="Settings"
-          subtitle="Alerts, appearance, privacy"
-          onPress={() => router.push("/rider/settings" as never)}
-        />
-      </Card>
     </Screen>
   );
 }

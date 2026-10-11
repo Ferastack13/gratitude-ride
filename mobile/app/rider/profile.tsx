@@ -174,7 +174,7 @@ export default function RiderMenuScreen() {
           <Text style={[styles.name, { color: colors.dark }]}>{name}</Text>
           <Text style={[styles.meta, { color: colors.muted }]}>{phone}</Text>
           <Text style={[styles.meta, { color: colors.muted }]} numberOfLines={1}>
-            {profile?.email ?? "Add email in Account"}
+            {profile?.email ?? "Tap to edit profile"}
           </Text>
           <View style={styles.chips}>
             <View
@@ -292,11 +292,11 @@ export default function RiderMenuScreen() {
         </Pressable>
       </Card>
 
-      <SectionTitle label="Your profile" />
+      <SectionTitle label="Driver" />
       <Card padded={false} style={{ paddingHorizontal: 12 }}>
         <ListRow
-          icon="person-outline"
-          title="Account"
+          icon="create-outline"
+          title="Edit profile"
           subtitle="Photo, name, phone, email"
           onPress={() => router.push("/rider/account" as never)}
         />
@@ -312,21 +312,11 @@ export default function RiderMenuScreen() {
           subtitle="Bank account for cash out"
           onPress={() => router.push("/rider/payouts" as never)}
         />
-      </Card>
-
-      <SectionTitle label="App" />
-      <Card padded={false} style={{ paddingHorizontal: 12 }}>
         <ListRow
           icon="settings-outline"
           title="Settings"
           subtitle="Alerts, appearance, privacy"
           onPress={() => router.push("/rider/settings" as never)}
-        />
-        <ListRow
-          icon="notifications-outline"
-          title="Job alerts"
-          subtitle="Offers and trip notifications"
-          onPress={() => router.push("/rider/settings/notifications" as never)}
         />
         <ListRow
           icon="swap-horizontal-outline"

@@ -80,8 +80,8 @@ export default function RiderSettingsHome() {
 
       <SectionLabel label="Account" palette={palette} />
       <SettingsRow
-        icon="person-outline"
-        title="Profile"
+        icon="create-outline"
+        title="Edit profile"
         subtitle={profile?.full_name ?? "Name, phone, email, photo"}
         palette={palette}
         onPress={() => router.push("/rider/account" as never)}

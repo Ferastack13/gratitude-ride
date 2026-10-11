@@ -45,10 +45,15 @@ Keep these exactly as written:
 - `{{ .Email }}`
 - `{{ .NewEmail }}`
 
-## Design notes
+## Design notes (app palette from `mobile/constants/theme.ts`)
 
-- Header: forest green (`#12372A`) with gold accent bar (`#F59E3D`) and logo
-- Body: cream canvas (`#F7F4ED`) / white card
-- CTA: gold button, forest text
-- Codes: monospace in a soft cream box
-- Footer: dark forest with tagline *Rides with gratitude · Nigeria*
+| Role | Hex | Token |
+|---|---|---|
+| Forest header / titles | `#12372A` | `primary` |
+| Gold accent / CTA | `#F59E3D` | `secondary` |
+| Cream canvas | `#F7F4ED` | `surface` |
+| Body text | `#5B675F` | `muted` |
+| Helper text | `#8A938C` | `mutedLight` |
+| Borders | `#D9D2C4` | `border` |
+| Footer | `#0C261D` | `primaryDark` |
+| Card | `#FFFFFF` | `white` |

@@ -17,7 +17,7 @@ export function Screen({
   if (!scroll) {
     return (
       <SafeAreaView style={safe} edges={["top"]}>
-        <View style={body}>{children}</View>
+        <View style={[body, { flex: 1 }]}>{children}</View>
       </SafeAreaView>
     );
   }

@@ -8,7 +8,7 @@ import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Linking,
   Pressable,
@@ -20,6 +20,9 @@ import {
 } from "react-native";
 
 type NotificationRow = Tables<"notifications">;
+
+/** Keep skeleton visible long enough to notice (network can finish in <50ms). */
+const SKELETON_MIN_MS = 700;
 
 function formatWhen(iso: string) {
   try {
@@ -41,13 +44,23 @@ export default function RiderInboxScreen() {
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const loadStartedAt = useRef(0);
 
   const load = useCallback(async () => {
     const userId = session?.user.id;
+    const started = loadStartedAt.current || Date.now();
+    const finish = () => {
+      const elapsed = Date.now() - started;
+      const wait = Math.max(0, SKELETON_MIN_MS - elapsed);
+      setTimeout(() => {
+        setLoading(false);
+        setRefreshing(false);
+      }, wait);
+    };
+
     if (!userId) {
       setItems([]);
-      setLoading(false);
-      setRefreshing(false);
+      finish();
       return;
     }
     try {
@@ -62,13 +75,13 @@ export default function RiderInboxScreen() {
     } catch {
       setItems([]);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      finish();
     }
   }, [session?.user.id]);
 
   useFocusEffect(
     useCallback(() => {
+      loadStartedAt.current = Date.now();
       setLoading(true);
       void load();
     }, [load])
@@ -84,6 +97,8 @@ export default function RiderInboxScreen() {
       .update({ is_read: true })
       .eq("id", row.id);
   };
+
+  const showSkeleton = tab === "notifications" && loading && !refreshing;
 
   return (
     <Screen scroll={false}>
@@ -136,65 +151,76 @@ export default function RiderInboxScreen() {
           onAction={() => Linking.openURL(SENIOR_SUPPORT_WHATSAPP)}
         />
       ) : (
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, paddingBottom: 24, flexGrow: 1 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                void load();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-        >
-          {loading && !refreshing ? (
+        <View style={styles.body}>
+          {showSkeleton ? (
             <NotificationSkeletonList count={5} />
-          ) : items.length === 0 ? (
-            <EmptyState
-              title="You're up to date!"
-              message="New trip alerts and account updates will appear here."
-            />
           ) : (
-            items.map((row) => (
-              <Pressable
-                key={row.id}
-                onPress={() => void markRead(row)}
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: colors.white,
-                    borderColor: colors.border,
-                    opacity: row.is_read ? 0.75 : 1,
-                  },
-                ]}
-              >
-                <View style={styles.cardTop}>
-                  <Text style={[styles.cardTitle, { color: colors.dark }]}>
-                    {row.title}
-                  </Text>
-                  {!row.is_read ? (
-                    <View
-                      style={[
-                        styles.unread,
-                        { backgroundColor: colors.secondary },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-                <Text style={[styles.cardBody, { color: colors.muted }]}>
-                  {row.message}
-                </Text>
-                <Text style={[styles.cardWhen, { color: colors.mutedLight }]}>
-                  {formatWhen(row.created_at)}
-                </Text>
-              </Pressable>
-            ))
+            <ScrollView
+              style={{ flex: 1 }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                gap: 10,
+                paddingBottom: 24,
+                flexGrow: 1,
+              }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    loadStartedAt.current = Date.now();
+                    setRefreshing(true);
+                    void load();
+                  }}
+                  tintColor={colors.primary}
+                />
+              }
+            >
+              {items.length === 0 ? (
+                <EmptyState
+                  title="You're up to date!"
+                  message="New trip alerts and account updates will appear here."
+                />
+              ) : (
+                items.map((row) => (
+                  <Pressable
+                    key={row.id}
+                    onPress={() => void markRead(row)}
+                    style={[
+                      styles.card,
+                      {
+                        backgroundColor: colors.white,
+                        borderColor: colors.border,
+                        opacity: row.is_read ? 0.75 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={styles.cardTop}>
+                      <Text style={[styles.cardTitle, { color: colors.dark }]}>
+                        {row.title}
+                      </Text>
+                      {!row.is_read ? (
+                        <View
+                          style={[
+                            styles.unread,
+                            { backgroundColor: colors.secondary },
+                          ]}
+                        />
+                      ) : null}
+                    </View>
+                    <Text style={[styles.cardBody, { color: colors.muted }]}>
+                      {row.message}
+                    </Text>
+                    <Text
+                      style={[styles.cardWhen, { color: colors.mutedLight }]}
+                    >
+                      {formatWhen(row.created_at)}
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
           )}
-        </ScrollView>
+        </View>
       )}
     </Screen>
   );
@@ -214,6 +240,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   tabText: { fontWeight: "700" },
+  body: { flex: 1, minHeight: 280 },
   card: {
     borderWidth: 1,
     borderRadius: 16,

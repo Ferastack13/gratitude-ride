@@ -126,7 +126,7 @@ export function RouteMap({
   ]);
 
   const baseZoom = zoomFromDelta(autoDelta);
-  const zoom = Math.min(16, Math.max(11, baseZoom + zoomBoost));
+  const zoom = Math.min(18, Math.max(11, baseZoom + zoomBoost));
 
   const markers = useMemo(() => {
     const list: { lat: number; lng: number; color: string }[] = [];

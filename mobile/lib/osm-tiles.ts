@@ -3,6 +3,8 @@
  * Replaces discontinued staticmap.openstreetmap.de.
  */
 
+import { PixelRatio } from "react-native";
+
 export const TILE_SIZE = 256;
 
 /** Carto Basemaps key from mobile/.env — never hardcode in source. */
@@ -10,13 +12,18 @@ function cartoApiKey(): string {
   return (process.env.EXPO_PUBLIC_CARTO_API_KEY ?? "").trim();
 }
 
-/** Carto Voyager raster tiles (requires EXPO_PUBLIC_CARTO_API_KEY). */
+/**
+ * Carto street tiles.
+ * Uses @2x on retina phones so roads/labels look dense (1x tiles look sparse).
+ * Style: voyager (full street network + labels).
+ */
 export function tileUrl(z: number, x: number, y: number): string {
   const n = 2 ** z;
   const xx = ((x % n) + n) % n;
   const yy = Math.max(0, Math.min(n - 1, Math.floor(y)));
   const subdomain = ["a", "b", "c", "d"][Math.abs(xx + yy) % 4];
-  const base = `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${xx}/${yy}.png`;
+  const retina = PixelRatio.get() >= 1.5 ? "@2x" : "";
+  const base = `https://${subdomain}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${xx}/${yy}${retina}.png`;
   const key = cartoApiKey();
   return key ? `${base}?key=${encodeURIComponent(key)}` : base;
 }
@@ -59,7 +66,7 @@ export function tilesForViewport(
   centerWorldY: number,
   width: number,
   height: number,
-  pad = 1
+  pad = 2
 ): TileSpec[] {
   const left = centerWorldX - width / 2;
   const top = centerWorldY - height / 2;

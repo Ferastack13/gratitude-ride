@@ -31,7 +31,8 @@ type Props = {
 };
 
 const NIGERIA: Coords = { lat: 9.082, lng: 8.6753 };
-const STREET_ZOOM = 16;
+/** Closer default so local streets fill the screen (16 looked too sparse). */
+const STREET_ZOOM = 17;
 const COUNTRY_ZOOM = 6;
 
 /**
@@ -66,7 +67,7 @@ export function HomeLocationMap({
 
   const center = coords ?? NIGERIA;
   const baseZoom = coords ? STREET_ZOOM : COUNTRY_ZOOM;
-  const zoom = Math.min(18, Math.max(5, baseZoom + zoomBoost));
+  const zoom = Math.min(19, Math.max(5, baseZoom + zoomBoost));
 
   useEffect(() => {
     if (coords && !didStreetZoom.current) {
@@ -172,7 +173,7 @@ export function HomeLocationMap({
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.ctrlBtn, pressed && { opacity: 0.8 }]}
-          onPress={() => setZoomBoost((z) => Math.max(-4, z - 1))}
+          onPress={() => setZoomBoost((z) => Math.max(-5, z - 1))}
           accessibilityLabel="Zoom out"
           hitSlop={8}
         >

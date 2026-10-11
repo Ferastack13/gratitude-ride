@@ -37,7 +37,7 @@ import {
 
 export default function DriverHomeScreen() {
   const { profile } = useAuth();
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW } = useWindowDimensions();
   const [online, setOnline] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [riderId, setRiderId] = useState<string | null>(null);
@@ -57,7 +57,6 @@ export default function DriverHomeScreen() {
   const coordsRef = useRef<LatLng | null>(null);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "Driver";
-  const mapHeight = Math.round(Math.min(420, Math.max(260, winH * 0.42)));
 
   const refreshLocation = useCallback(async () => {
     setLocating(true);
@@ -106,9 +105,9 @@ export default function DriverHomeScreen() {
       .maybeSingle();
     setOnline(Boolean(rider?.is_available));
 
-    // Don't overwrite a live GPS fix with a stale DB pin.
+    // Keep last live GPS; only fall back to DB pin if we have nothing yet.
     let coords: LatLng | null = coordsRef.current;
-    if (!liveGpsRef.current) {
+    if (!liveGpsRef.current && !coords) {
       if (rider?.current_lat != null && rider?.current_lng != null) {
         coords = {
           lat: Number(rider.current_lat),
@@ -168,20 +167,31 @@ export default function DriverHomeScreen() {
       setLocating(true);
       setLocMessage(null);
 
+      const applyFix = (coords: LatLng) => {
+        if (stopped) return;
+        liveGpsRef.current = true;
+        coordsRef.current = coords;
+        setDriverCoords(coords);
+        setLocating(false);
+        setLocMessage(null);
+        const id = riderIdRef.current;
+        if (id) {
+          void updateRiderLocation(id, coords).catch(() => undefined);
+        }
+      };
+
       void (async () => {
+        // One-shot first — don't wait only on the watch (flaky on Expo Go).
+        const quick = await resolveCurrentLocation();
+        if (!stopped && quick.ok) {
+          applyFix(quick.coords);
+        } else if (!stopped && !liveGpsRef.current && quick.message) {
+          setLocMessage(quick.message);
+        }
+
         const watch = await startDeviceLocationWatch({
           onUpdate: (place) => {
-            if (stopped) return;
-            liveGpsRef.current = true;
-            const coords = { lat: place.lat, lng: place.lng };
-            coordsRef.current = coords;
-            setDriverCoords(coords);
-            setLocating(false);
-            setLocMessage(null);
-            const id = riderIdRef.current;
-            if (id) {
-              void updateRiderLocation(id, coords).catch(() => undefined);
-            }
+            applyFix({ lat: place.lat, lng: place.lng });
           },
           onError: (message) => {
             if (stopped) return;
@@ -195,7 +205,7 @@ export default function DriverHomeScreen() {
         }
         if ("error" in watch) {
           setLocating(false);
-          setLocMessage(watch.error);
+          if (!liveGpsRef.current) setLocMessage(watch.error);
           return;
         }
         stopRef.current = watch.stop;
@@ -426,7 +436,7 @@ export default function DriverHomeScreen() {
             loading={locating || (loading && !driverCoords)}
             errorMessage={locMessage}
             onRequestLocation={() => void refreshLocation()}
-            height={mapHeight}
+            fill
             width={winW}
             flush
             controlsTop

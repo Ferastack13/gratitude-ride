@@ -186,8 +186,24 @@ export async function resolveCurrentLocation(): Promise<DeviceLocationResult> {
       }
     }
 
-    const coords =
-      (await readLastKnown()) ?? (await readGps("resolveCurrentLocation"));
+    // Prefer a fresh fix — lastKnown often sticks the map on an old/static pin.
+    let coords: { lat: number; lng: number; accuracy: number | null } | null =
+      null;
+    try {
+      coords = await readGps("resolveCurrentLocation");
+    } catch (e) {
+      LOG("resolveCurrentLocation:fresh-failed", e);
+      coords = await readLastKnown();
+    }
+    if (!coords) {
+      return {
+        ok: false,
+        permission: "granted",
+        reason: "unavailable",
+        message:
+          "Couldn’t read your GPS yet. Stay on this screen a moment, or tap Retry.",
+      };
+    }
     const reversed = await reverseWithTimeout(coords.lat, coords.lng);
     const place = placeFromCoords(coords.lat, coords.lng, reversed);
 

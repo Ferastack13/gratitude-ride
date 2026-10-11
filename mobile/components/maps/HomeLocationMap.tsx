@@ -3,6 +3,7 @@ import { colors, radii, shadows } from "@/constants/theme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -19,6 +20,8 @@ type Props = {
   onRequestLocation?: () => void;
   height?: number;
   width?: number;
+  /** Fill the parent pane (eliminates blank gap under a short map). */
+  fill?: boolean;
   /** Extra markers (e.g. pending pickup) drawn with the live puck. */
   markers?: { lat: number; lng: number; color?: string }[];
   /** Flush edges for map-first Home (presentation only). */
@@ -43,14 +46,23 @@ export function HomeLocationMap({
   onRequestLocation,
   height = 200,
   width,
+  fill = false,
   markers = [],
   flush = false,
   controlsTop = false,
 }: Props) {
   const { width: winW } = useWindowDimensions();
-  const mapW = width && width > 0 ? width : winW;
+  const [layout, setLayout] = useState({ w: 0, h: 0 });
   const [zoomBoost, setZoomBoost] = useState(0);
   const didStreetZoom = useRef(false);
+
+  const mapW =
+    fill && layout.w > 0
+      ? layout.w
+      : width && width > 0
+        ? width
+        : winW;
+  const mapH = fill && layout.h > 0 ? layout.h : height;
 
   const center = coords ?? NIGERIA;
   const baseZoom = coords ? STREET_ZOOM : COUNTRY_ZOOM;
@@ -69,6 +81,15 @@ export function HomeLocationMap({
     onRequestLocation?.();
   }, [onRequestLocation]);
 
+  const onLayout = (e: LayoutChangeEvent) => {
+    if (!fill) return;
+    const { width: w, height: h } = e.nativeEvent.layout;
+    if (w <= 0 || h <= 0) return;
+    setLayout((prev) =>
+      Math.abs(prev.w - w) < 1 && Math.abs(prev.h - h) < 1 ? prev : { w, h }
+    );
+  };
+
   const mapMarkers = [
     ...(coords
       ? [{ lat: coords.lat, lng: coords.lng, color: "#1a73e8" }]
@@ -81,23 +102,28 @@ export function HomeLocationMap({
     ),
   ];
 
+  const ready = !fill || (mapW > 0 && mapH > 0);
+
   return (
     <View
       style={[
         styles.shell,
         flush && styles.shellFlush,
-        { height, width: mapW },
+        fill ? styles.fill : { height, width: mapW },
       ]}
+      onLayout={onLayout}
       collapsable={false}
     >
-      <OsmRasterMap
-        key={coords ? "live" : "empty"}
-        center={center}
-        zoom={zoom}
-        height={height}
-        width={mapW}
-        markers={mapMarkers}
-      />
+      {ready ? (
+        <OsmRasterMap
+          key={coords ? "live" : "empty"}
+          center={center}
+          zoom={zoom}
+          height={mapH}
+          width={mapW}
+          markers={mapMarkers}
+        />
+      ) : null}
 
       {coords ? (
         <View
@@ -126,7 +152,9 @@ export function HomeLocationMap({
                 ]}
                 onPress={onRequestLocation}
               >
-                <Text style={styles.retryText}>Turn on location</Text>
+                <Text style={styles.retryText}>
+                  {loading ? "Retry GPS" : "Turn on location"}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -170,6 +198,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#dbe4ea",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+  },
+  fill: {
+    flex: 1,
+    alignSelf: "stretch",
+    width: "100%",
   },
   shellFlush: {
     borderRadius: 0,

@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
   },
   mapFill: {
     flex: 1,
+    alignSelf: "stretch",
   },
   topOverlay: {
     position: "absolute",

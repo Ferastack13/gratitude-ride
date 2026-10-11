@@ -1,0 +1,42 @@
+project_id = "ktjolkbqsggrrmsdeagi"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+# Branded Gratitude Ride auth emails (local + CLI). Hosted project: paste from
+# supabase/templates into Dashboard → Authentication → Emails → Templates.
+[auth.email.template.confirmation]
+subject = "Confirm your Gratitude Ride email"
+content_path = "./templates/confirm-signup.html"
+
+[auth.email.template.invite]
+subject = "You're invited to Gratitude Ride"
+content_path = "./templates/invite-user.html"
+
+[auth.email.template.magic_link]
+subject = "Your Gratitude Ride sign-in link"
+content_path = "./templates/magic-link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new Gratitude Ride email"
+content_path = "./templates/change-email.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Gratitude Ride password"
+content_path = "./templates/reset-password.html"
+
+[auth.email.template.reauthentication]
+subject = "{{ .Token }} is your Gratitude Ride code"
+content_path = "./templates/reauthentication.html"

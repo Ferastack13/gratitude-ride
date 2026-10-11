@@ -1,4 +1,5 @@
 import { HomeLocationMap } from "@/components/maps/HomeLocationMap";
+import { HomeSheetSkeleton } from "@/components/ui/Skeleton";
 import { StatusChip } from "@/components/ui/StatusChip";
 import { JobOfferModal } from "@/components/workflow/JobOfferModal";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
@@ -573,7 +574,7 @@ export default function DriverHomeScreen() {
                 </Text>
               </View>
             ) : loading ? (
-              <ActivityIndicator color={colors.primary} />
+              <HomeSheetSkeleton />
             ) : orders.length === 0 ? (
               <View style={styles.offlineCard}>
                 <Text style={styles.offlineTitle}>Waiting for offers</Text>

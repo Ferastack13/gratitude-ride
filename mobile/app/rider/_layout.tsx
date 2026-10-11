@@ -1,10 +1,12 @@
 import { AppTabBar } from "@/components/navigation/AppTabBar";
+import { MenuSkeleton } from "@/components/ui/Skeleton";
 import { colors } from "@/constants/theme";
 import { homeForRole, useAuth } from "@/context/auth";
 import { ensureDriverIdentity } from "@/lib/driver-bootstrap";
 import { Redirect, Tabs } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * Driver shell. Phase 0 hardens entry:
@@ -15,6 +17,7 @@ import { ActivityIndicator, View } from "react-native";
 export default function RiderLayout() {
   const { session, loading, ready, profile, accountType, refreshProfile } =
     useAuth();
+  const insets = useSafeAreaInsets();
   const [bootstrapping, setBootstrapping] = useState(true);
   const didBootstrap = useRef(false);
 
@@ -71,8 +74,15 @@ export default function RiderLayout() {
 
   if (loading || !ready || bootstrapping) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color={colors.primary} />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.surface,
+          paddingTop: insets.top + 12,
+          paddingHorizontal: 18,
+        }}
+      >
+        <MenuSkeleton />
       </View>
     );
   }

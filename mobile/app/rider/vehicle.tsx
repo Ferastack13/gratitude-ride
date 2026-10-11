@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { FormCardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import {
@@ -13,7 +14,6 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   StyleSheet,
@@ -91,7 +91,7 @@ export default function RiderVehicleScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+        <FormCardSkeleton fields={2} />
       ) : (
         <>
           <Text style={[styles.label, { color: colors.muted }]}>

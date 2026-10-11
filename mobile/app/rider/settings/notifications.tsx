@@ -4,11 +4,20 @@ import {
   ToggleRow,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
-import { Linking, Text } from "react-native";
+import { SettingsSkeleton } from "@/components/ui/Skeleton";
+import { Linking, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RiderNotificationsScreen() {
   const { settings, update, palette, ready } = useSettingsState();
-  if (!ready || !settings) return null;
+  const insets = useSafeAreaInsets();
+  if (!ready || !settings) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#F7F4ED", paddingTop: insets.top }}>
+        <SettingsSkeleton rows={6} />
+      </View>
+    );
+  }
   const c = settings.communication;
   const n = settings.notifications;
 

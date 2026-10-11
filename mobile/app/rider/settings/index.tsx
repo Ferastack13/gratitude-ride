@@ -4,17 +4,20 @@ import {
   SettingsShell,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
+import { SettingsSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import {
   appearanceSubtitle,
 } from "@/lib/settings";
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RiderSettingsHome() {
   const { settings, palette, ready } = useSettingsState();
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const version =
     Constants.expoConfig?.version ??
     Constants.nativeAppVersion ??
@@ -22,8 +25,13 @@ export default function RiderSettingsHome() {
 
   if (!ready || !settings) {
     return (
-      <View style={[styles.boot, { backgroundColor: "#F7F4ED" }]}>
-        <ActivityIndicator color="#12372A" />
+      <View
+        style={[
+          styles.boot,
+          { backgroundColor: "#F7F4ED", paddingTop: insets.top },
+        ]}
+      >
+        <SettingsSkeleton rows={7} />
       </View>
     );
   }
@@ -120,6 +128,6 @@ export default function RiderSettingsHome() {
 }
 
 const styles = StyleSheet.create({
-  boot: { flex: 1, alignItems: "center", justifyContent: "center" },
+  boot: { flex: 1 },
   foot: { marginTop: 18, fontSize: 12, lineHeight: 17, fontWeight: "600" },
 });

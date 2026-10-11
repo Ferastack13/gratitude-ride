@@ -1,5 +1,6 @@
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Card } from "@/components/ui/Card";
+import { FormCardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { getRiderByUserId } from "@/lib/driver-bootstrap";
@@ -268,6 +269,10 @@ export function EditProfileForm({ onSaved }: Props) {
     { ok: verified, label: "Verified badge" },
   ];
 
+  if (loading) {
+    return <FormCardSkeleton fields={3} />;
+  }
+
   return (
     <View style={styles.wrap}>
       <View style={styles.hero}>
@@ -356,10 +361,6 @@ export function EditProfileForm({ onSaved }: Props) {
           ))}
         </View>
       </Card>
-
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />
-      ) : null}
 
       <Text style={[styles.blockTitle, { color: colors.dark }]}>
         Contact details

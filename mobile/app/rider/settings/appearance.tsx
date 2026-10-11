@@ -3,10 +3,12 @@ import {
   SettingsShell,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
+import { SettingsSkeleton } from "@/components/ui/Skeleton";
 import { darkColors, lightColors } from "@/constants/theme";
 import { useAppTheme } from "@/context/theme";
 import type { AppearanceMode } from "@/lib/settings";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const OPTIONS: {
   value: AppearanceMode;
@@ -81,7 +83,14 @@ function Preview({ mode }: { mode: AppearanceMode }) {
 export default function RiderAppearanceScreen() {
   const { settings, palette, ready } = useSettingsState();
   const { setAppearance } = useAppTheme();
-  if (!ready || !settings) return null;
+  const insets = useSafeAreaInsets();
+  if (!ready || !settings) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#F7F4ED", paddingTop: insets.top }}>
+        <SettingsSkeleton rows={4} />
+      </View>
+    );
+  }
 
   return (
     <SettingsShell title="Appearance" palette={palette} settings={settings}>

@@ -1,5 +1,6 @@
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { CardSkeletonList } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import {
@@ -14,7 +15,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -127,7 +127,6 @@ export default function RiderSetLocationScreen() {
           autoFocus
           autoCorrect={false}
         />
-        {loading ? <ActivityIndicator color={colors.primary} /> : null}
       </View>
 
       <Pressable
@@ -154,8 +153,10 @@ export default function RiderSetLocationScreen() {
         <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
       ) : null}
 
+      {loading ? <CardSkeletonList count={4} lines={2} /> : null}
+
       <FlatList
-        data={list}
+        data={loading ? [] : list}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 40, gap: 8 }}

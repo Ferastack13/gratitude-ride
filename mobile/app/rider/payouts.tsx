@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { FormCardSkeleton } from "@/components/ui/Skeleton";
 import { useColors } from "@/context/theme";
 import {
   getDriverPayoutDetails,
@@ -10,7 +11,6 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   StyleSheet,
   Text,
@@ -93,7 +93,7 @@ export default function RiderPayoutsScreen() {
       </Card>
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} />
+        <FormCardSkeleton fields={3} />
       ) : (
         <View style={{ gap: 10 }}>
           <Text style={[styles.label, { color: colors.muted }]}>

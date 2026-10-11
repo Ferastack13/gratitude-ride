@@ -1,6 +1,10 @@
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import {
+  CardSkeletonList,
+  JobCardSkeletonList,
+} from "@/components/ui/Skeleton";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { ensureRiderId, type Delivery } from "@/lib/deliveries";
@@ -278,10 +282,7 @@ export default function DriverDiscoverScreen() {
         <Text style={styles.sectionSub}>{nearbyLabel}</Text>
 
         {loading ? (
-          <ActivityIndicator
-            color={colors.primary}
-            style={{ marginVertical: 24 }}
-          />
+          <JobCardSkeletonList count={4} />
         ) : jobs.length === 0 ? (
           <EmptyState
             title={online ? "No nearby requests yet" : "Nothing nearby to show"}
@@ -340,19 +341,27 @@ export default function DriverDiscoverScreen() {
         <Text style={styles.sectionSub}>
           Static guides for now — live promotions come later
         </Text>
-        <View style={styles.promoList}>
-          {PROMOS.map((p) => (
-            <View key={p.id} style={styles.promo}>
-              <View style={styles.promoIcon}>
-                <Ionicons name={p.icon} size={18} color={colors.secondaryDark} />
+        {loading ? (
+          <CardSkeletonList count={3} lines={2} />
+        ) : (
+          <View style={styles.promoList}>
+            {PROMOS.map((p) => (
+              <View key={p.id} style={styles.promo}>
+                <View style={styles.promoIcon}>
+                  <Ionicons
+                    name={p.icon}
+                    size={18}
+                    color={colors.secondaryDark}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoTitle}>{p.title}</Text>
+                  <Text style={styles.promoBody}>{p.body}</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.promoTitle}>{p.title}</Text>
-                <Text style={styles.promoBody}>{p.body}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );

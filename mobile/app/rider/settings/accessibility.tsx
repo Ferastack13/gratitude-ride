@@ -5,7 +5,10 @@ import {
   ToggleRow,
   useSettingsState,
 } from "@/components/settings/SettingsChrome";
+import { SettingsSkeleton } from "@/components/ui/Skeleton";
 import type { FontScale } from "@/lib/settings";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const FONT_OPTIONS: { value: FontScale; title: string; body: string }[] = [
   { value: "default", title: "Default", body: "Standard text size." },
@@ -15,7 +18,14 @@ const FONT_OPTIONS: { value: FontScale; title: string; body: string }[] = [
 
 export default function RiderAccessibilityScreen() {
   const { settings, update, palette, ready } = useSettingsState();
-  if (!ready || !settings) return null;
+  const insets = useSafeAreaInsets();
+  if (!ready || !settings) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#F7F4ED", paddingTop: insets.top }}>
+        <SettingsSkeleton rows={5} />
+      </View>
+    );
+  }
 
   return (
     <SettingsShell title="Accessibility" palette={palette} settings={settings}>

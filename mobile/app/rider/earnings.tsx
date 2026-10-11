@@ -1,6 +1,7 @@
 import { Card, EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { EarningsSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { getDriverPayoutDetails } from "@/lib/driver-payouts";
@@ -10,7 +11,6 @@ import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -149,10 +149,8 @@ export default function RiderEarningsScreen() {
   if (loading && !refreshing) {
     return (
       <Screen>
-        <ActivityIndicator
-          color={colors.primary}
-          style={{ marginTop: 40 }}
-        />
+        <ScreenHeader title="Earnings" />
+        <EarningsSkeleton />
       </Screen>
     );
   }

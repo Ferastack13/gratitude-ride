@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { MenuSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { promptAppReview } from "@/lib/app-review";
@@ -17,7 +18,6 @@ import Constants from "expo-constants";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -186,6 +186,14 @@ export default function RiderMenuScreen() {
     );
   }
 
+  if (loading) {
+    return (
+      <Screen>
+        <MenuSkeleton />
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <Pressable style={styles.header} onPress={openEdit}>
@@ -257,10 +265,6 @@ export default function RiderMenuScreen() {
           </View>
         </View>
       </Pressable>
-
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginVertical: 4 }} />
-      ) : null}
 
       <View style={styles.grid}>
         <QuickTile

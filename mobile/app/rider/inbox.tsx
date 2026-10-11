@@ -1,6 +1,7 @@
 import { EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
+import { NotificationSkeletonList } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
@@ -9,7 +10,6 @@ import type { Tables } from "@/types/database";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   RefreshControl,
@@ -135,8 +135,6 @@ export default function RiderInboxScreen() {
           actionLabel="WhatsApp support"
           onAction={() => Linking.openURL(SENIOR_SUPPORT_WHATSAPP)}
         />
-      ) : loading && !refreshing ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 32 }} />
       ) : (
         <ScrollView
           style={{ flex: 1 }}
@@ -153,7 +151,9 @@ export default function RiderInboxScreen() {
             />
           }
         >
-          {items.length === 0 ? (
+          {loading && !refreshing ? (
+            <NotificationSkeletonList count={5} />
+          ) : items.length === 0 ? (
             <EmptyState
               title="You're up to date!"
               message="New trip alerts and account updates will appear here."

@@ -1,5 +1,6 @@
 import { radii, shadows, type ThemeColors } from "@/constants/theme";
 import { useColors } from "@/context/theme";
+import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import type { ComponentProps } from "react";
@@ -131,6 +132,7 @@ function themeFor(routeName: string, label: string, colors: ThemeColors): TabThe
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
+  const unreadInbox = useUnreadNotificationCount();
   const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 12 : 8);
 
   const focused = state.routes[state.index];
@@ -188,6 +190,10 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 
             const theme = themeFor(route.name, label, colors);
             const icon = focused ? theme.filled : theme.outline;
+            const showUnread =
+              route.name === "inbox" && unreadInbox > 0;
+            const unreadLabel =
+              unreadInbox > 9 ? "9+" : String(unreadInbox);
 
             const onPress = () => {
               const event = navigation.emit({
@@ -206,7 +212,11 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 key={route.key}
                 accessibilityRole="button"
                 accessibilityState={focused ? { selected: true } : {}}
-                accessibilityLabel={label}
+                accessibilityLabel={
+                  showUnread
+                    ? `${label}, ${unreadInbox} unread`
+                    : label
+                }
                 onPress={onPress}
                 android_ripple={{ color: theme.soft, borderless: false }}
                 style={({ pressed }) => [
@@ -234,6 +244,16 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                     size={focused ? 18 : 20}
                     color={theme.accent}
                   />
+                  {showUnread ? (
+                    <View
+                      style={[
+                        styles.badge,
+                        { backgroundColor: colors.secondary },
+                      ]}
+                    >
+                      <Text style={styles.badgeText}>{unreadLabel}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text
                   style={[
@@ -313,6 +333,23 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+  },
+  badge: {
+    position: "absolute",
+    top: -3,
+    right: -5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+    lineHeight: 11,
   },
   label: {
     fontSize: 11,

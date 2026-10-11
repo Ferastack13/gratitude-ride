@@ -4,10 +4,11 @@ import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { NotificationSkeletonList } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
+import { bumpUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
   Linking,
@@ -87,15 +88,22 @@ export default function RiderInboxScreen() {
     }, [load])
   );
 
-  const markRead = async (row: NotificationRow) => {
-    if (row.is_read) return;
-    setItems((prev) =>
-      prev.map((n) => (n.id === row.id ? { ...n, is_read: true } : n))
-    );
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", row.id);
+  const openNotification = async (row: NotificationRow) => {
+    if (!row.is_read) {
+      setItems((prev) =>
+        prev.map((n) => (n.id === row.id ? { ...n, is_read: true } : n))
+      );
+      await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", row.id);
+      bumpUnreadNotificationCount();
+    }
+
+    // Trip-related messages open Discover; others just mark read.
+    if (row.type === "delivery") {
+      router.push("/rider/orders" as never);
+    }
   };
 
   const showSkeleton = tab === "notifications" && loading && !refreshing;
@@ -184,7 +192,7 @@ export default function RiderInboxScreen() {
                 items.map((row) => (
                   <Pressable
                     key={row.id}
-                    onPress={() => void markRead(row)}
+                    onPress={() => void openNotification(row)}
                     style={[
                       styles.card,
                       {

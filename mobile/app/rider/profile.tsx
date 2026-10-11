@@ -1,8 +1,10 @@
+import { EditProfileForm } from "@/components/profile/EditProfileForm";
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
+import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { promptAppReview } from "@/lib/app-review";
@@ -12,8 +14,8 @@ import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Constants from "expo-constants";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -62,6 +64,8 @@ function QuickTile({
 export default function RiderMenuScreen() {
   const { profile, session, signOut, setAccountTypePreference } = useAuth();
   const colors = useColors();
+  const params = useLocalSearchParams<{ edit?: string }>();
+  const [editing, setEditing] = useState(false);
   const [vehicle, setVehicle] = useState<string | null>(null);
   const [online, setOnline] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -75,6 +79,12 @@ export default function RiderMenuScreen() {
     Constants.expoConfig?.version ??
     Constants.nativeAppVersion ??
     "1.0.0";
+
+  useEffect(() => {
+    if (params.edit === "1" || params.edit === "true") {
+      setEditing(true);
+    }
+  }, [params.edit]);
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -119,6 +129,12 @@ export default function RiderMenuScreen() {
   const tripsLabel =
     trips != null && trips > 0 ? `${trips} trip${trips === 1 ? "" : "s"}` : "No trips yet";
 
+  const openEdit = () => setEditing(true);
+  const closeEdit = () => {
+    setEditing(false);
+    void load();
+  };
+
   const goOfflineThen = async (action: () => Promise<void> | void) => {
     if (userId && online) {
       const rider = await getRiderByUserId(userId).catch(() => null);
@@ -157,18 +173,28 @@ export default function RiderMenuScreen() {
     );
   };
 
+  if (editing) {
+    return (
+      <Screen>
+        <ScreenHeader
+          title="Edit profile"
+          subtitle="Photo, name, phone, email"
+          onBack={closeEdit}
+        />
+        <EditProfileForm onSaved={() => void load()} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      <Pressable
-        style={styles.header}
-        onPress={() => router.push("/rider/account" as never)}
-      >
+      <Pressable style={styles.header} onPress={openEdit}>
         <ProfileAvatar
           uri={profile?.avatar_url}
           name={name}
           size={72}
           badge
-          onPress={() => router.push("/rider/account" as never)}
+          onPress={openEdit}
         />
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={[styles.name, { color: colors.dark }]}>{name}</Text>
@@ -292,13 +318,13 @@ export default function RiderMenuScreen() {
         </Pressable>
       </Card>
 
-      <SectionTitle label="All shortcuts (one place)" />
+      <SectionTitle label="Shortcuts" />
       <Card padded={false} style={{ paddingHorizontal: 12 }}>
         <ListRow
           icon="create-outline"
           title="Edit profile"
-          subtitle="Photo, name, phone, email only — not another menu"
-          onPress={() => router.push("/rider/account" as never)}
+          subtitle="Photo, name, phone, email"
+          onPress={openEdit}
         />
         <ListRow
           icon="car-outline"

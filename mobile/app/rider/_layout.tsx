@@ -102,10 +102,6 @@ export default function RiderLayout() {
       <Tabs.Screen name="inbox" options={{ title: "Inbox" }} />
       <Tabs.Screen name="profile" options={{ title: "Menu" }} />
       <Tabs.Screen
-        name="account"
-        options={{ href: null, headerShown: false, title: "Account" }}
-      />
-      <Tabs.Screen
         name="vehicle"
         options={{ href: null, headerShown: false, title: "Vehicle" }}
       />

@@ -1,7 +1,5 @@
 import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { Card } from "@/components/ui/Card";
-import { Screen } from "@/components/ui/Screen";
-import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { useAuth } from "@/context/auth";
 import { useColors } from "@/context/theme";
 import { getRiderByUserId } from "@/lib/driver-bootstrap";
@@ -15,8 +13,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +24,15 @@ import {
   View,
 } from "react-native";
 
-export default function RiderAccountScreen() {
+type Props = {
+  /** Called after a successful save so Menu can refresh header data. */
+  onSaved?: () => void;
+};
+
+/**
+ * Driver edit-profile fields — lives on Menu, not a separate Account tab.
+ */
+export function EditProfileForm({ onSaved }: Props) {
   const { profile, session, refreshProfile } = useAuth();
   const colors = useColors();
   const userId = session?.user.id ?? profile?.id;
@@ -56,22 +61,17 @@ export default function RiderAccountScreen() {
       ]);
       if (row) {
         setExists(true);
-        setName((prev) => (prev === (row.full_name ?? "") ? prev : row.full_name ?? ""));
-        setPhone((prev) => (prev === (row.phone ?? "") ? prev : row.phone ?? ""));
-        setEmail((prev) => (prev === (row.email ?? "") ? prev : row.email ?? ""));
-        setAvatarUrl((prev) =>
-          prev === row.avatar_url ? prev : row.avatar_url
-        );
+        setName(row.full_name ?? "");
+        setPhone(row.phone ?? "");
+        setEmail(row.email ?? "");
+        setAvatarUrl(row.avatar_url);
         setMemberSince(row.created_at ?? null);
       } else {
         setExists(false);
-        const metaName = String(session?.user.user_metadata?.full_name ?? "");
-        const metaPhone = String(session?.user.user_metadata?.phone ?? "");
-        const metaEmail = session?.user.email ?? "";
-        setName((prev) => (prev === metaName ? prev : metaName));
-        setPhone((prev) => (prev === metaPhone ? prev : metaPhone));
-        setEmail((prev) => (prev === metaEmail ? prev : metaEmail));
-        setAvatarUrl((prev) => (prev == null ? prev : null));
+        setName(String(session?.user.user_metadata?.full_name ?? ""));
+        setPhone(String(session?.user.user_metadata?.phone ?? ""));
+        setEmail(session?.user.email ?? "");
+        setAvatarUrl(null);
       }
       setVehicle(rider?.vehicle_type ?? null);
       setVerified(Boolean(rider?.is_verified));
@@ -87,17 +87,20 @@ export default function RiderAccountScreen() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user.email, session?.user.user_metadata?.full_name, session?.user.user_metadata?.phone, userId]);
+  }, [
+    session?.user.email,
+    session?.user.user_metadata?.full_name,
+    session?.user.user_metadata?.phone,
+    userId,
+  ]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load])
-  );
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const pickFrom = async (source: "library" | "camera") => {
-    const userId = session?.user.id;
-    if (!userId) return;
+    const id = session?.user.id;
+    if (!id) return;
 
     const permission =
       source === "camera"
@@ -137,10 +140,11 @@ export default function RiderAccountScreen() {
           email,
         });
       }
-      const url = await uploadAvatar(userId, result.assets[0].uri);
+      const url = await uploadAvatar(id, result.assets[0].uri);
       setAvatarUrl(url);
       setExists(true);
       await refreshProfile();
+      onSaved?.();
     } catch (err) {
       Alert.alert(
         "Couldn’t save photo",
@@ -160,8 +164,8 @@ export default function RiderAccountScreen() {
   };
 
   const onRemovePhoto = () => {
-    const userId = session?.user.id;
-    if (!userId || !avatarUrl) return;
+    const id = session?.user.id;
+    if (!id || !avatarUrl) return;
     Alert.alert(
       "Remove photo?",
       "Your profile will show your initials instead.",
@@ -173,9 +177,10 @@ export default function RiderAccountScreen() {
           onPress: async () => {
             setLoadingPhoto(true);
             try {
-              await deleteAvatar(userId);
+              await deleteAvatar(id);
               setAvatarUrl(null);
               await refreshProfile();
+              onSaved?.();
             } catch (err) {
               Alert.alert(
                 "Couldn’t remove photo",
@@ -227,12 +232,13 @@ export default function RiderAccountScreen() {
       }
       const { error: authError } = await supabase.auth.updateUser(authPatch);
       await refreshProfile();
+      onSaved?.();
       if (authError) {
         Alert.alert("Profile saved", authError.message);
       } else {
         Alert.alert(
           "Profile updated",
-          "Your driver account details are up to date."
+          "Your driver details are up to date."
         );
       }
     } catch (err) {
@@ -263,13 +269,7 @@ export default function RiderAccountScreen() {
   ];
 
   return (
-    <Screen>
-      <ScreenHeader
-        title="Edit profile"
-        subtitle="Photo, name, phone, email"
-        onBack={() => router.back()}
-      />
-
+    <View style={styles.wrap}>
       <View style={styles.hero}>
         <View style={{ position: "relative" }}>
           <ProfileAvatar
@@ -424,11 +424,12 @@ export default function RiderAccountScreen() {
           {saving ? "Saving…" : exists ? "Save changes" : "Create profile"}
         </Text>
       </Pressable>
-    </Screen>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: { gap: 10 },
   hero: {
     alignItems: "center",
     paddingTop: 4,

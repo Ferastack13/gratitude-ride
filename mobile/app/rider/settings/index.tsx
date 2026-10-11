@@ -84,7 +84,7 @@ export default function RiderSettingsHome() {
         title="Edit profile"
         subtitle={profile?.full_name ?? "Name, phone, email, photo"}
         palette={palette}
-        onPress={() => router.push("/rider/account" as never)}
+        onPress={() => router.push("/rider/profile?edit=1" as never)}
       />
       <SettingsRow
         icon="shield-checkmark-outline"

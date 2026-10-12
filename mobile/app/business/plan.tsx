@@ -9,6 +9,15 @@ import {
   setBusinessPaymentMethod,
   type BusinessPaymentMethod,
 } from "@/lib/business-billing";
+import {
+  getBusinessGuests,
+  getCostCenters,
+  getDefaultCostCenterId,
+  saveBusinessGuest,
+  setDefaultCostCenterId,
+  type BusinessGuest,
+  type CostCenter,
+} from "@/lib/business-team";
 import { pushRecentPlace } from "@/lib/client-prefs";
 import { createTrackingId, ensureClientId } from "@/lib/deliveries";
 import { formatCurrency } from "@/lib/format";
@@ -25,8 +34,8 @@ import {
 import { fetchDrivingRoute, type RouteResult } from "@/lib/routing";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -100,6 +109,9 @@ export default function BusinessPlanScreen() {
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestNote, setGuestNote] = useState("");
+  const [guests, setGuests] = useState<BusinessGuest[]>([]);
+  const [centers, setCenters] = useState<CostCenter[]>([]);
+  const [costCenterId, setCostCenterId] = useState<string | null>(null);
   const [payMethod, setPayMethod] =
     useState<BusinessPaymentMethod>("cash");
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -113,6 +125,26 @@ export default function BusinessPlanScreen() {
       .then(setPayMethod)
       .catch(() => undefined);
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        const [g, c, def] = await Promise.all([
+          getBusinessGuests().catch(() => []),
+          getCostCenters().catch(() => []),
+          getDefaultCostCenterId().catch(() => null),
+        ]);
+        setGuests(g);
+        setCenters(c);
+        setCostCenterId((prev) => prev ?? def);
+      })();
+    }, [])
+  );
+
+  const selectedCenter = useMemo(
+    () => centers.find((c) => c.id === costCenterId) ?? null,
+    [centers, costCenterId]
+  );
 
   const option = useMemo(() => rideOptionById(rideId), [rideId]);
 
@@ -176,6 +208,7 @@ export default function BusinessPlanScreen() {
         `Guest: ${guestName.trim()}`,
         `Phone: ${guestPhone.trim()}`,
         guestNote.trim() && `Note: ${guestNote.trim()}`,
+        selectedCenter && `Cost center: ${selectedCenter.name}`,
         `Pay ${payMethod}`,
       ]
         .filter(Boolean)
@@ -203,6 +236,11 @@ export default function BusinessPlanScreen() {
       if (error) throw error;
 
       await setBusinessPaymentMethod(payMethod);
+      await saveBusinessGuest({
+        name: guestName,
+        phone: guestPhone,
+        note: guestNote,
+      }).catch(() => undefined);
       await pushRecentPlace(dropoff);
       router.replace(`/business/track/${data.tracking_id}` as never);
     } catch (err) {
@@ -259,6 +297,44 @@ export default function BusinessPlanScreen() {
             <Text style={styles.guestHint}>
               Who is taking this trip? Drivers may call this number.
             </Text>
+            {guests.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.guestChips}
+              >
+                {guests.slice(0, 8).map((g) => (
+                  <Pressable
+                    key={g.id}
+                    style={[
+                      styles.guestChip,
+                      guestPhone === g.phone && styles.guestChipOn,
+                    ]}
+                    onPress={() => {
+                      setGuestName(g.name);
+                      setGuestPhone(g.phone);
+                      setGuestNote(g.note ?? "");
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.guestChipText,
+                        guestPhone === g.phone && { color: colors.primary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {g.name}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={styles.guestChip}
+                  onPress={() => router.push("/business/team" as never)}
+                >
+                  <Text style={styles.guestChipText}>Manage</Text>
+                </Pressable>
+              </ScrollView>
+            ) : null}
             <TextInput
               value={guestName}
               onChangeText={setGuestName}
@@ -282,6 +358,45 @@ export default function BusinessPlanScreen() {
               style={styles.guestInput}
             />
           </View>
+
+          {centers.length > 0 ? (
+            <View>
+              <Text style={styles.section}>Cost center</Text>
+              <View style={styles.payRow}>
+                {centers.slice(0, 4).map((c) => {
+                  const on = costCenterId === c.id;
+                  return (
+                    <Pressable
+                      key={c.id}
+                      style={[
+                        styles.payChip,
+                        {
+                          backgroundColor: on
+                            ? colors.primarySoft
+                            : colors.surfaceAlt,
+                          borderColor: on ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => {
+                        setCostCenterId(c.id);
+                        void setDefaultCostCenterId(c.id);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.payChipText,
+                          { color: on ? colors.primary : colors.dark },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {c.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.stops}>
             <View style={styles.stopRow}>
@@ -525,6 +640,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   guestHint: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: -4 },
+  guestChips: { gap: 8, paddingVertical: 4 },
+  guestChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: 140,
+  },
+  guestChipOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  guestChipText: { fontWeight: "700", fontSize: 12, color: colors.dark },
   guestInput: {
     backgroundColor: colors.white,
     borderWidth: 1,

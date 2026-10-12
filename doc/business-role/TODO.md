@@ -20,6 +20,6 @@
 - [x] Default pay method (cash / transfer) on Billing + plan confirm
 - [x] Trip receipts screen (shareable) from Billing / Bookings
 
-## Phase 4 — Differentiation
-- [ ] Team invites / guest riders list
-- [ ] Cost centers / invoices when backend exists
+## Phase 4 — Differentiation ✅
+- [x] Guest riders list (save / pick on plan / manage from Account)
+- [x] Cost centers + monthly spend summaries (local until formal invoices exist)

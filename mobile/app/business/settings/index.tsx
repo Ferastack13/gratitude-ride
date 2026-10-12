@@ -85,8 +85,22 @@ export default function BusinessSettingsHome() {
         title="Billing"
         subtitle="Payment prefs and receipts"
         palette={palette}
-        last
         onPress={() => router.push("/business/billing" as never)}
+      />
+      <SettingsRow
+        icon="people-outline"
+        title="Guest riders"
+        subtitle="Saved passengers"
+        palette={palette}
+        onPress={() => router.push("/business/team" as never)}
+      />
+      <SettingsRow
+        icon="pricetag-outline"
+        title="Cost centers"
+        subtitle="Tag trips for reporting"
+        palette={palette}
+        last
+        onPress={() => router.push("/business/cost-centers" as never)}
       />
 
       <SectionLabel label="App" palette={palette} />

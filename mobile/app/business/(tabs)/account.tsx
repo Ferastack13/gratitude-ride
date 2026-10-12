@@ -82,11 +82,15 @@ export default function BusinessAccountScreen() {
         />
         <ListRow
           icon="people-outline"
-          title="Team members"
-          subtitle="Coming soon"
-          onPress={() =>
-            Alert.alert("Team members", "Invite teammates in a later update.")
-          }
+          title="Guest riders"
+          subtitle="Saved passengers for bookings"
+          onPress={() => router.push("/business/team" as never)}
+        />
+        <ListRow
+          icon="pricetag-outline"
+          title="Cost centers"
+          subtitle="Tag trips for reporting"
+          onPress={() => router.push("/business/cost-centers" as never)}
         />
         <ListRow
           icon="help-circle-outline"

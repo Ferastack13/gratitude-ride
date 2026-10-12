@@ -123,10 +123,15 @@ export default function BusinessHomeScreen() {
       )}
 
       <Card>
-        <Text style={styles.teamTitle}>Team</Text>
+        <Text style={styles.teamTitle}>Guest riders</Text>
         <Text style={styles.teamBody}>
-          Invite teammates and manage guest riders — coming soon.
+          Save staff or clients, then pick them when you book.
         </Text>
+        <Button
+          label="Manage guests"
+          variant="outline"
+          onPress={() => router.push("/business/team" as never)}
+        />
       </Card>
     </Screen>
   );

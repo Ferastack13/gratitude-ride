@@ -138,14 +138,15 @@ export default function BusinessBillingScreen() {
             />
             <ListRow
               icon="document-text-outline"
-              title="Invoices"
-              subtitle="Monthly summaries — coming soon"
-              onPress={() =>
-                Alert.alert(
-                  "Invoices",
-                  "Monthly company invoices will appear here later."
-                )
-              }
+              title="Monthly summaries"
+              subtitle="Spend by month and cost center"
+              onPress={() => router.push("/business/invoices" as never)}
+            />
+            <ListRow
+              icon="pricetag-outline"
+              title="Cost centers"
+              subtitle="Departments / projects"
+              onPress={() => router.push("/business/cost-centers" as never)}
             />
             <ListRow
               icon="card-outline"

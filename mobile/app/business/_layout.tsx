@@ -1,11 +1,15 @@
-import { AppTabBar } from "@/components/navigation/AppTabBar";
-import { colors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
 import { useAuth } from "@/context/auth";
-import { Redirect, Tabs } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
+/**
+ * Business root = Stack.
+ * Tabs live in (tabs). Book / plan / track are stack screens — never bottom-nav items.
+ */
 export default function BusinessLayout() {
   const { session, loading, ready, profile, accountType } = useAuth();
+  const colors = useColors();
 
   if (loading || !ready) {
     return (
@@ -22,34 +26,26 @@ export default function BusinessLayout() {
   if (profile?.role === "rider" || accountType === "driver") {
     return <Redirect href="/rider" />;
   }
-  // Only bounce when we know they chose passenger (null = still ok / default)
   if (accountType === "passenger") {
     return <Redirect href={"/passenger" as never} />;
   }
 
   return (
-    <Tabs
-      backBehavior="history"
-      tabBar={(props) => <AppTabBar {...props} />}
+    <Stack
       screenOptions={{
         headerShown: false,
-        lazy: false,
-        freezeOnBlur: true,
-        sceneStyle: { backgroundColor: colors.surface, flex: 1 },
+        contentStyle: { backgroundColor: colors.surface },
+        animation: "slide_from_right",
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="bookings" options={{ title: "Bookings" }} />
-      <Tabs.Screen name="billing" options={{ title: "Billing" }} />
-      <Tabs.Screen name="account" options={{ title: "Account" }} />
-      <Tabs.Screen
-        name="book"
-        options={{ href: null, headerShown: false, title: "Book" }}
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="where-to"
+        options={{ animation: "slide_from_bottom" }}
       />
-      <Tabs.Screen
-        name="track/[id]"
-        options={{ href: null, headerShown: false, title: "Track" }}
-      />
-    </Tabs>
+      <Stack.Screen name="plan" />
+      <Stack.Screen name="book" />
+      <Stack.Screen name="track/[id]" />
+    </Stack>
   );
 }

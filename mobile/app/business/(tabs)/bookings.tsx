@@ -93,7 +93,7 @@ export default function BusinessBookingsScreen() {
           title="No bookings"
           message="Book a trip for a guest or teammate from Home."
           actionLabel="Quick book"
-          onAction={() => router.push("/business/book" as never)}
+          onAction={() => router.push("/business/where-to" as never)}
         />
       ) : (
         filtered.map((row) => (

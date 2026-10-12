@@ -75,7 +75,7 @@ export default function BusinessHomeScreen() {
         </Text>
         <Button
           label="Quick book"
-          onPress={() => router.push("/business/book" as never)}
+          onPress={() => router.push("/business/where-to" as never)}
         />
       </Card>
 
@@ -104,7 +104,7 @@ export default function BusinessHomeScreen() {
           title="No upcoming bookings"
           message="Quick book a trip for a passenger or team member."
           actionLabel="Quick book"
-          onAction={() => router.push("/business/book" as never)}
+          onAction={() => router.push("/business/where-to" as never)}
         />
       ) : (
         upcoming.map((row) => (

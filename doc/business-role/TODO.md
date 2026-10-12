@@ -12,9 +12,9 @@
 - [x] Richer Bookings rows (`TripActivityCard`) + filter empty states
 - [x] Company profile screen (name/phone)
 
-## Phase 2 — Account & switching
-- [ ] Settings subset (profile, appearance, support)
-- [ ] Clearer personal ↔ business switch
+## Phase 2 — Account & switching ✅
+- [x] Settings subset (company, appearance, privacy, support)
+- [x] Clearer switch: passenger / driver from Account + Settings
 
 ## Phase 3 — Billing
 - [ ] Default pay method into book

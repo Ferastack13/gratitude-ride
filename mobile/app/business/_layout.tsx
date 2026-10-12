@@ -46,6 +46,7 @@ export default function BusinessLayout() {
       <Stack.Screen name="plan" />
       <Stack.Screen name="book" />
       <Stack.Screen name="company-profile" />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="track/[id]" />
     </Stack>
   );

@@ -1,5 +1,6 @@
 import { TripActivityCard } from "@/components/passenger/TripActivityCard";
 import { Card, EmptyState } from "@/components/ui/Card";
+import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { JobCardSkeletonList } from "@/components/ui/Skeleton";
@@ -83,6 +84,14 @@ export default function BusinessBookingsScreen() {
   return (
     <Screen>
       <ScreenHeader title="Bookings" subtitle="All business trips" />
+      <Card padded={false} style={{ paddingHorizontal: 12 }}>
+        <ListRow
+          icon="receipt-outline"
+          title="Trip receipts"
+          subtitle="Completed trips with fare"
+          onPress={() => router.push("/business/receipts" as never)}
+        />
+      </Card>
       <View style={styles.filters}>
         {(["all", "active", "done"] as const).map((f) => {
           const on = filter === f;

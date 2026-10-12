@@ -16,9 +16,9 @@
 - [x] Settings subset (company, appearance, privacy, support)
 - [x] Clearer switch: passenger / driver from Account + Settings
 
-## Phase 3 — Billing
-- [ ] Default pay method into book
-- [ ] Trip receipts from bookings
+## Phase 3 — Billing ✅
+- [x] Default pay method (cash / transfer) on Billing + plan confirm
+- [x] Trip receipts screen (shareable) from Billing / Bookings
 
 ## Phase 4 — Differentiation
 - [ ] Team invites / guest riders list

@@ -3,10 +3,16 @@ import { RouteMap } from "@/components/maps/RouteMap";
 import { Button } from "@/components/ui/Button";
 import { colors, radii, shadows } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import {
+  getBusinessPaymentMethod,
+  paymentMethodLabel,
+  setBusinessPaymentMethod,
+  type BusinessPaymentMethod,
+} from "@/lib/business-billing";
 import { pushRecentPlace } from "@/lib/client-prefs";
-import { getAppSettings, reserveSubtitle, type AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { createTrackingId, ensureClientId } from "@/lib/deliveries";
 import { formatCurrency } from "@/lib/format";
+import { getAppSettings, reserveSubtitle, type AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { placeParams, resolveCurrentLocation } from "@/lib/location";
 import type { LivePlace } from "@/lib/places";
 import {
@@ -94,6 +100,8 @@ export default function BusinessPlanScreen() {
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestNote, setGuestNote] = useState("");
+  const [payMethod, setPayMethod] =
+    useState<BusinessPaymentMethod>("cash");
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routing, setRouting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +109,9 @@ export default function BusinessPlanScreen() {
 
   useEffect(() => {
     getAppSettings().then(setPrefs).catch(() => undefined);
+    getBusinessPaymentMethod()
+      .then(setPayMethod)
+      .catch(() => undefined);
   }, []);
 
   const option = useMemo(() => rideOptionById(rideId), [rideId]);
@@ -165,6 +176,7 @@ export default function BusinessPlanScreen() {
         `Guest: ${guestName.trim()}`,
         `Phone: ${guestPhone.trim()}`,
         guestNote.trim() && `Note: ${guestNote.trim()}`,
+        `Pay ${payMethod}`,
       ]
         .filter(Boolean)
         .join(" · ");
@@ -190,6 +202,7 @@ export default function BusinessPlanScreen() {
         .single();
       if (error) throw error;
 
+      await setBusinessPaymentMethod(payMethod);
       await pushRecentPlace(dropoff);
       router.replace(`/business/track/${data.tracking_id}` as never);
     } catch (err) {
@@ -338,6 +351,35 @@ export default function BusinessPlanScreen() {
               />
             );
           })}
+
+          <Text style={styles.section}>Payment</Text>
+          <View style={styles.payRow}>
+            {(["cash", "transfer"] as const).map((m) => {
+              const on = payMethod === m;
+              return (
+                <Pressable
+                  key={m}
+                  style={[
+                    styles.payChip,
+                    {
+                      backgroundColor: on ? colors.primarySoft : colors.surfaceAlt,
+                      borderColor: on ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setPayMethod(m)}
+                >
+                  <Text
+                    style={[
+                      styles.payChipText,
+                      { color: on ? colors.primary : colors.dark },
+                    ]}
+                  >
+                    {paymentMethodLabel(m)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           <View style={styles.summary}>
             <View>
@@ -494,4 +536,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.dark,
   },
+  payRow: { flexDirection: "row", gap: 8 },
+  payChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radii.full,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  payChipText: { fontWeight: "700", fontSize: 13 },
 });

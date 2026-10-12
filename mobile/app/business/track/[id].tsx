@@ -2,6 +2,7 @@ import { StatusTimeline } from "@/components/delivery/StatusTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
+import { TripSkeleton } from "@/components/ui/Skeleton";
 import { ContactBar } from "@/components/workflow/ContactBar";
 import { FindingCourier } from "@/components/workflow/FindingCourier";
 import { MapShell, SheetHandle } from "@/components/workflow/MapShell";
@@ -29,7 +30,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -362,8 +362,8 @@ export default function BusinessTrackScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
+      <View style={[styles.center, { alignItems: "stretch" }]}>
+        <TripSkeleton />
       </View>
     );
   }

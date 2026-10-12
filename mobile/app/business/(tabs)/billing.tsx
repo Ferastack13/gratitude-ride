@@ -2,10 +2,17 @@ import { Card, EmptyState } from "@/components/ui/Card";
 import { ListRow } from "@/components/ui/ListRow";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { colors } from "@/constants/theme";
-import { Alert, StyleSheet, Text } from "react-native";
+import { type ThemeColors } from "@/constants/theme";
+import { useColors } from "@/context/theme";
+import { SENIOR_SUPPORT_WHATSAPP } from "@/lib/settings";
+import { router } from "expo-router";
+import { useMemo } from "react";
+import { Alert, Linking, StyleSheet, Text } from "react-native";
 
 export default function BusinessBillingScreen() {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Screen>
       <ScreenHeader
@@ -38,25 +45,24 @@ export default function BusinessBillingScreen() {
         <ListRow
           icon="receipt-outline"
           title="Trip receipts"
-          onPress={() =>
-            Alert.alert("Receipts", "Open Bookings to view trip costs.")
-          }
+          subtitle="Open Bookings for trip costs"
+          onPress={() => router.push("/business/bookings" as never)}
         />
       </Card>
       <EmptyState
-        title="Support"
-        message="Need a PO or billing change? Contact Gratitude Ride support."
-        actionLabel="Contact support"
-        onAction={() =>
-          Alert.alert("Support", "WhatsApp support: +234 800 000 0000")
-        }
+        title="Need billing help?"
+        message="PO numbers and invoice changes go through support."
+        actionLabel="WhatsApp support"
+        onAction={() => Linking.openURL(SENIOR_SUPPORT_WHATSAPP)}
       />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  balLabel: { color: colors.muted, fontWeight: "700", fontSize: 12 },
-  balValue: { fontSize: 22, fontWeight: "900", color: colors.dark },
-  hint: { color: colors.muted, lineHeight: 18, fontSize: 13 },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    balLabel: { color: colors.muted, fontWeight: "700", fontSize: 12 },
+    balValue: { fontSize: 22, fontWeight: "900", color: colors.dark },
+    hint: { color: colors.muted, lineHeight: 18, fontSize: 13 },
+  });
+}

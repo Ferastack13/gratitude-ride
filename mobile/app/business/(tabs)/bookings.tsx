@@ -1,152 +1,151 @@
-import { EmptyState } from "@/components/ui/Card";
+import { TripActivityCard } from "@/components/passenger/TripActivityCard";
+import { Card, EmptyState } from "@/components/ui/Card";
 import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
-import { Badge } from "@/components/ui/Badge";
-import { colors, radii } from "@/constants/theme";
+import { JobCardSkeletonList } from "@/components/ui/Skeleton";
+import { radii, type ThemeColors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
+import { useColors } from "@/context/theme";
 import type { Delivery } from "@/lib/deliveries";
-import {
-  formatCurrency,
-  formatStatus,
-  shortAddress,
-  statusTone,
-} from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+const ACTIVE = new Set(["pending", "accepted", "picked_up", "in_transit"]);
+const DONE = new Set(["delivered", "cancelled"]);
 
 export default function BusinessBookingsScreen() {
   const { profile } = useAuth();
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [rows, setRows] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "done">("all");
 
   const load = useCallback(async () => {
-    if (!profile?.id) return;
-    const { data: client } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("user_id", profile.id)
-      .maybeSingle();
-    if (!client?.id) {
+    if (!profile?.id) {
       setRows([]);
       setLoading(false);
       return;
     }
-    const { data } = await supabase
-      .from("deliveries")
-      .select("*")
-      .eq("client_id", client.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setRows(data ?? []);
-    setLoading(false);
+    try {
+      const { data: client } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("user_id", profile.id)
+        .maybeSingle();
+      if (!client?.id) {
+        setRows([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("deliveries")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setRows(data ?? []);
+    } finally {
+      setLoading(false);
+    }
   }, [profile?.id]);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      load();
+      void load();
     }, [load])
   );
 
   const filtered = rows.filter((row) => {
-    if (filter === "active") {
-      return ["pending", "accepted", "picked_up", "in_transit"].includes(
-        row.status
-      );
-    }
-    if (filter === "done") {
-      return ["delivered", "cancelled"].includes(row.status);
-    }
+    if (filter === "active") return ACTIVE.has(row.status);
+    if (filter === "done") return DONE.has(row.status);
     return true;
   });
+
+  const emptyCopy =
+    filter === "active"
+      ? {
+          title: "No live trips",
+          message: "Active bookings will show here while you’re matching or in transit.",
+        }
+      : filter === "done"
+        ? {
+            title: "No past trips",
+            message: "Completed and cancelled trips land here.",
+          }
+        : {
+            title: "No bookings yet",
+            message: "Book a trip for a guest or teammate from Home.",
+          };
 
   return (
     <Screen>
       <ScreenHeader title="Bookings" subtitle="All business trips" />
       <View style={styles.filters}>
-        {(["all", "active", "done"] as const).map((f) => (
-          <Pressable
-            key={f}
-            style={[styles.chip, filter === f && styles.chipOn]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.chipText, filter === f && styles.chipTextOn]}>
-              {f === "all" ? "All" : f === "active" ? "Live" : "Past"}
-            </Text>
-          </Pressable>
-        ))}
+        {(["all", "active", "done"] as const).map((f) => {
+          const on = filter === f;
+          return (
+            <Pressable
+              key={f}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: on ? colors.dark : colors.white,
+                  borderColor: on ? colors.dark : colors.border,
+                },
+              ]}
+              onPress={() => setFilter(f)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: on ? colors.white : colors.muted },
+                ]}
+              >
+                {f === "all" ? "All" : f === "active" ? "Live" : "Past"}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} />
+        <JobCardSkeletonList count={5} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title="No bookings"
-          message="Book a trip for a guest or teammate from Home."
+          title={emptyCopy.title}
+          message={emptyCopy.message}
           actionLabel="Quick book"
           onAction={() => router.push("/business/where-to" as never)}
         />
       ) : (
-        filtered.map((row) => (
-          <Pressable
-            key={row.id}
-            style={styles.row}
-            onPress={() =>
-              router.push(`/business/track/${row.tracking_id}` as never)
-            }
-          >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.addr} numberOfLines={1}>
-                {shortAddress(row.pickup_address)} →{" "}
-                {shortAddress(row.delivery_address)}
-              </Text>
-              <Text style={styles.meta}>
-                {row.tracking_id} · {formatCurrency(row.estimated_fee)}
-              </Text>
-            </View>
-            <Badge
-              label={formatStatus(row.status)}
-              tone={statusTone(row.status)}
+        <Card padded={false} style={{ paddingHorizontal: 12 }}>
+          {filtered.map((row) => (
+            <TripActivityCard
+              key={row.id}
+              delivery={row}
+              onPress={() =>
+                router.push(`/business/track/${row.tracking_id}` as never)
+              }
             />
-          </Pressable>
-        ))
+          ))}
+        </Card>
       )}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  filters: { flexDirection: "row", gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.full,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipOn: { backgroundColor: colors.dark, borderColor: colors.dark },
-  chipText: { fontWeight: "700", color: colors.muted, fontSize: 13 },
-  chipTextOn: { color: colors.white },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-  },
-  addr: { fontWeight: "800", color: colors.dark, fontSize: 14 },
-  meta: { color: colors.muted, fontSize: 12, fontWeight: "600" },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    filters: { flexDirection: "row", gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.full,
+      borderWidth: 1,
+    },
+    chipText: { fontWeight: "700", fontSize: 13 },
+  });
+}

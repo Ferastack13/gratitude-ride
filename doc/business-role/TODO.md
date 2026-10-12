@@ -6,11 +6,11 @@
 - [x] Guest passenger name + phone (+ optional note) on confirm
 - [x] Track: cancel pending + live driver GPS + route
 
-## Phase 1 — Core loop polish
-- [ ] Pulsing skeletons on Home / Bookings / Track
-- [ ] `useColors` on all business screens
-- [ ] Richer Bookings rows + empty states
-- [ ] Wire Company profile (name/phone)
+## Phase 1 — Core loop polish ✅
+- [x] Pulsing skeletons on Home / Bookings / Track
+- [x] `useColors` on tab screens (Home, Bookings, Billing, Account)
+- [x] Richer Bookings rows (`TripActivityCard`) + filter empty states
+- [x] Company profile screen (name/phone)
 
 ## Phase 2 — Account & switching
 - [ ] Settings subset (profile, appearance, support)

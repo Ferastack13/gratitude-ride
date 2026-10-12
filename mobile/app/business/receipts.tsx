@@ -4,7 +4,6 @@ import { Screen } from "@/components/ui/Screen";
 import { ScreenHeader } from "@/components/ui/ScreenHeader";
 import { JobCardSkeletonList } from "@/components/ui/Skeleton";
 import { useAuth } from "@/context/auth";
-import { useColors } from "@/context/theme";
 import {
   buildTripReceiptText,
   guestFromNotes,
@@ -18,7 +17,6 @@ import { Alert, Share } from "react-native";
 
 export default function BusinessReceiptsScreen() {
   const { profile } = useAuth();
-  const colors = useColors();
   const [rows, setRows] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
 

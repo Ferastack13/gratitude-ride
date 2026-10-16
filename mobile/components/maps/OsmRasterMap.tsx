@@ -4,7 +4,13 @@ import {
   lngToWorldX,
   tilesForViewport,
 } from "@/lib/osm-tiles";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Image,
   StyleSheet,
@@ -27,11 +33,25 @@ type Props = {
   /** Pixel width — pass this so tiles paint before onLayout (avoids a blank map). */
   width?: number;
   markers?: Marker[];
+  /** Road path in lat/lng — drawn as screen-space segments (no native MapView). */
+  path?: Coords[];
+  pathColor?: string;
   dragOffset?: { x: number; y: number };
   onLayoutSize?: (size: { w: number; h: number }) => void;
   style?: StyleProp<ViewStyle>;
-  children?: React.ReactNode;
+  children?: ReactNode;
 };
+
+/** Cap points so we don't paint hundreds of Views on long OSRM routes. */
+function simplifyPath(path: Coords[], maxPoints: number): Coords[] {
+  if (path.length <= maxPoints) return path;
+  const step = (path.length - 1) / (maxPoints - 1);
+  const out: Coords[] = [];
+  for (let i = 0; i < maxPoints; i++) {
+    out.push(path[Math.round(i * step)]!);
+  }
+  return out;
+}
 
 /**
  * Live OSM/Carto raster tiles (replaces discontinued staticmap.openstreetmap.de).
@@ -42,6 +62,8 @@ export function OsmRasterMap({
   height,
   width: widthProp,
   markers = [],
+  path = [],
+  pathColor = "#12372A",
   dragOffset = { x: 0, y: 0 },
   onLayoutSize,
   style,
@@ -81,6 +103,48 @@ export function OsmRasterMap({
   useEffect(() => {
     logged.current = false;
   }, [center.lat, center.lng, zoom]);
+
+  const pathNodes = useMemo(() => {
+    if (size.w <= 0 || path.length < 2) return null;
+    const pts = simplifyPath(path, 48);
+    const cx = lngToWorldX(center.lng, zoom);
+    const cy = latToWorldY(center.lat, zoom);
+    const pixels = pts.map((p) => ({
+      x: lngToWorldX(p.lng, zoom) - cx + size.w / 2,
+      y: latToWorldY(p.lat, zoom) - cy + size.h / 2,
+    }));
+    const segments: ReactNode[] = [];
+    for (let i = 0; i < pixels.length - 1; i++) {
+      const a = pixels[i]!;
+      const b = pixels[i + 1]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.5) continue;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      segments.push(
+        <View
+          key={`seg-${i}`}
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            left: midX - len / 2,
+            top: midY - 2,
+            width: len,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: pathColor,
+            opacity: 0.88,
+            transform: [{ rotate: `${angle}deg` }],
+            zIndex: 1,
+          }}
+        />
+      );
+    }
+    return segments;
+  }, [path, pathColor, center.lat, center.lng, zoom, size.w, size.h]);
 
   const markerNodes = useMemo(() => {
     if (size.w <= 0) return null;
@@ -165,6 +229,7 @@ export function OsmRasterMap({
             }}
           />
         ))}
+        {pathNodes}
         {markerNodes}
       </View>
       {children}

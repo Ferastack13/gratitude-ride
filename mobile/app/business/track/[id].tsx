@@ -228,6 +228,26 @@ export default function BusinessTrackScreen() {
       }
     })();
 
+    const applyRiderGps = (row: {
+      current_lat?: number | null;
+      current_lng?: number | null;
+      location_updated_at?: string | null;
+    } | null) => {
+      if (
+        row?.current_lat == null ||
+        row?.current_lng == null ||
+        !Number.isFinite(Number(row.current_lat)) ||
+        !Number.isFinite(Number(row.current_lng))
+      ) {
+        return;
+      }
+      setDriverLive({
+        lat: Number(row.current_lat),
+        lng: Number(row.current_lng),
+        updatedAt: row.location_updated_at ?? new Date().toISOString(),
+      });
+    };
+
     const channel = supabase
       .channel(`business-driver-gps-${delivery!.id}-${riderId}`)
       .on(
@@ -239,30 +259,32 @@ export default function BusinessTrackScreen() {
           filter: `id=eq.${riderId}`,
         },
         (payload) => {
-          const row = payload.new as {
-            current_lat?: number | null;
-            current_lng?: number | null;
-            location_updated_at?: string | null;
-          } | null;
-          if (
-            row?.current_lat == null ||
-            row?.current_lng == null ||
-            !Number.isFinite(Number(row.current_lat)) ||
-            !Number.isFinite(Number(row.current_lng))
-          ) {
-            return;
-          }
-          setDriverLive({
-            lat: Number(row.current_lat),
-            lng: Number(row.current_lng),
-            updatedAt: row.location_updated_at ?? new Date().toISOString(),
-          });
+          applyRiderGps(
+            payload.new as {
+              current_lat?: number | null;
+              current_lng?: number | null;
+              location_updated_at?: string | null;
+            } | null
+          );
         }
       )
       .subscribe();
 
+    // Soft poll — Realtime can miss updates; keep Track fresh every 12s.
+    const poll = setInterval(() => {
+      void (async () => {
+        const { data } = await supabase
+          .from("riders")
+          .select("current_lat, current_lng, location_updated_at")
+          .eq("id", riderId)
+          .maybeSingle();
+        if (!cancelled) applyRiderGps(data);
+      })();
+    }, 12_000);
+
     return () => {
       cancelled = true;
+      clearInterval(poll);
       supabase.removeChannel(channel);
     };
   }, [delivery?.id, delivery?.rider_id, delivery?.status]);

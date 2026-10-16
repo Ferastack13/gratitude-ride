@@ -10,8 +10,14 @@ import { colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth";
 import { distanceKm } from "@/lib/cities";
 import type { Delivery } from "@/lib/deliveries";
+import {
+  formatLocationAge,
+  isDriverLocationStale,
+  type DriverLiveLocation,
+} from "@/lib/driver-location";
 import { estimateEtaMinutes, formatEta } from "@/lib/eta";
 import { formatCurrency, formatStatus, statusTone } from "@/lib/format";
+import { fetchDrivingRoute } from "@/lib/routing";
 import { supabase } from "@/lib/supabase";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams } from "expo-router";
@@ -27,12 +33,25 @@ import {
   View,
 } from "react-native";
 
+const TRACK_LIVE_STATUSES = new Set([
+  "accepted",
+  "picked_up",
+  "in_transit",
+]);
+
 export default function TrackScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [riderName, setRiderName] = useState("Courier");
   const [riderPhone, setRiderPhone] = useState<string | null>(null);
+  const [driverLive, setDriverLive] = useState<DriverLiveLocation | null>(
+    null
+  );
+  const [routeCoords, setRouteCoords] = useState<
+    { lat: number; lng: number }[] | undefined
+  >();
+  const [locationTick, setLocationTick] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rated, setRated] = useState(false);
@@ -123,6 +142,118 @@ export default function TrackScreen() {
     };
   }, [delivery?.id]);
 
+  useEffect(() => {
+    const riderId = delivery?.rider_id;
+    const status = delivery?.status;
+    if (!riderId || !status || !TRACK_LIVE_STATUSES.has(status)) {
+      if (status === "pending" || !riderId) setDriverLive(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const applyRiderGps = (row: {
+      current_lat?: number | null;
+      current_lng?: number | null;
+      location_updated_at?: string | null;
+    } | null) => {
+      if (
+        row?.current_lat == null ||
+        row?.current_lng == null ||
+        !Number.isFinite(Number(row.current_lat)) ||
+        !Number.isFinite(Number(row.current_lng))
+      ) {
+        return;
+      }
+      setDriverLive({
+        lat: Number(row.current_lat),
+        lng: Number(row.current_lng),
+        updatedAt: row.location_updated_at ?? new Date().toISOString(),
+      });
+    };
+
+    void (async () => {
+      const { data } = await supabase
+        .from("riders")
+        .select("current_lat, current_lng, location_updated_at")
+        .eq("id", riderId)
+        .maybeSingle();
+      if (!cancelled) applyRiderGps(data);
+    })();
+
+    const channel = supabase
+      .channel(`client-driver-gps-${delivery!.id}-${riderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "riders",
+          filter: `id=eq.${riderId}`,
+        },
+        (payload) => {
+          applyRiderGps(
+            payload.new as {
+              current_lat?: number | null;
+              current_lng?: number | null;
+              location_updated_at?: string | null;
+            } | null
+          );
+        }
+      )
+      .subscribe();
+
+    const poll = setInterval(() => {
+      void (async () => {
+        const { data } = await supabase
+          .from("riders")
+          .select("current_lat, current_lng, location_updated_at")
+          .eq("id", riderId)
+          .maybeSingle();
+        if (!cancelled) applyRiderGps(data);
+      })();
+    }, 12_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      supabase.removeChannel(channel);
+    };
+  }, [delivery?.id, delivery?.rider_id, delivery?.status]);
+
+  useEffect(() => {
+    if (!delivery?.status || !TRACK_LIVE_STATUSES.has(delivery.status)) return;
+    const t = setInterval(() => setLocationTick((n) => n + 1), 5000);
+    return () => clearInterval(t);
+  }, [delivery?.status]);
+
+  useEffect(() => {
+    if (
+      delivery?.pickup_lat == null ||
+      delivery?.pickup_lng == null ||
+      delivery?.delivery_lat == null ||
+      delivery?.delivery_lng == null
+    ) {
+      setRouteCoords(undefined);
+      return;
+    }
+    let cancelled = false;
+    void fetchDrivingRoute(
+      { lat: delivery.pickup_lat, lng: delivery.pickup_lng },
+      { lat: delivery.delivery_lat, lng: delivery.delivery_lng }
+    ).then((r) => {
+      if (!cancelled) setRouteCoords(r.coords);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    delivery?.pickup_lat,
+    delivery?.pickup_lng,
+    delivery?.delivery_lat,
+    delivery?.delivery_lng,
+  ]);
+
   const km = useMemo(() => {
     if (
       delivery?.pickup_lat == null ||
@@ -201,6 +332,17 @@ export default function TrackScreen() {
   }
 
   const finding = delivery.status === "pending";
+  const showLiveDriver =
+    Boolean(delivery.rider_id) && TRACK_LIVE_STATUSES.has(delivery.status);
+  const hasFreshDriver =
+    showLiveDriver &&
+    driverLive != null &&
+    !isDriverLocationStale(driverLive.updatedAt);
+  const hasAnyDriverPoint =
+    showLiveDriver &&
+    driverLive != null &&
+    Number.isFinite(driverLive.lat) &&
+    Number.isFinite(driverLive.lng);
   const hasCoords =
     delivery.pickup_lat != null && delivery.delivery_lat != null;
   const center = hasCoords
@@ -208,13 +350,25 @@ export default function TrackScreen() {
         lat: (delivery.pickup_lat! + delivery.delivery_lat!) / 2,
         lng: (delivery.pickup_lng! + delivery.delivery_lng!) / 2,
       }
-    : { lat: 6.5244, lng: 3.3792 };
+    : hasAnyDriverPoint
+      ? { lat: driverLive!.lat, lng: driverLive!.lng }
+      : { lat: 6.5244, lng: 3.3792 };
+
+  void locationTick;
+  const locationLabel = !showLiveDriver
+    ? null
+    : !hasAnyDriverPoint
+      ? "Waiting for driver’s location…"
+      : isDriverLocationStale(driverLive!.updatedAt)
+        ? "Waiting for driver’s location update"
+        : formatLocationAge(driverLive!.updatedAt);
 
   return (
     <MapShell
       map={
         <RouteMap
           fullBleed
+          live={Boolean(hasFreshDriver)}
           center={center}
           pickup={
             hasCoords
@@ -234,6 +388,16 @@ export default function TrackScreen() {
                 }
               : undefined
           }
+          driver={
+            hasAnyDriverPoint
+              ? {
+                  lat: driverLive!.lat,
+                  lng: driverLive!.lng,
+                  label: "Driver",
+                }
+              : undefined
+          }
+          routeCoords={routeCoords}
         />
       }
       top={
@@ -284,6 +448,18 @@ export default function TrackScreen() {
               subtitle={`Courier · ${formatCurrency(delivery.estimated_fee)}`}
             />
           )}
+
+          {locationLabel ? (
+            <Text
+              style={{
+                color: hasFreshDriver ? colors.primary : colors.muted,
+                fontWeight: "700",
+                fontSize: 13,
+              }}
+            >
+              {locationLabel}
+            </Text>
+          ) : null}
 
           <View style={styles.stops}>
             <Text style={styles.stop}>

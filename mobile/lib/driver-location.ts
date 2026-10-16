@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import { distanceKm } from "@/lib/geo";
 import { updateRiderLocation } from "@/lib/ride-matching";
+import { Platform } from "react-native";
 
 /** Min time between Supabase writes (ms). */
 export const DRIVER_LOCATION_MIN_INTERVAL_MS = 8_000;
@@ -8,6 +9,14 @@ export const DRIVER_LOCATION_MIN_INTERVAL_MS = 8_000;
 export const DRIVER_LOCATION_MIN_DISTANCE_M = 25;
 /** Treat location as stale after this age. */
 export const DRIVER_LOCATION_STALE_MS = 90_000;
+/**
+ * Polling fallback — Expo docs: watchPositionAsync only fires in foreground,
+ * and on many Android/Expo Go devices watch alone never delivers fixes.
+ * Match passenger `startDeviceLocationWatch` reliability.
+ */
+const DRIVER_POLL_INTERVAL_MS = 5_000;
+const DRIVER_WATCH_TIME_MS = 2_000;
+const DRIVER_WATCH_DISTANCE_M = 5;
 
 export type DriverLiveLocation = {
   lat: number;
@@ -35,9 +44,41 @@ export function formatLocationAge(updatedAt: string | null | undefined) {
   return `Updated ${min}m ago`;
 }
 
+async function readGpsFix(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const last = await Location.getLastKnownPositionAsync({
+      maxAge: 15_000,
+      requiredAccuracy: 100,
+    });
+    if (last?.coords) {
+      return {
+        lat: last.coords.latitude,
+        lng: last.coords.longitude,
+      };
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+      mayShowUserSettingsDialog: true,
+    });
+    return {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Watch real device GPS and persist to `riders.current_lat/lng`.
- * Throttles writes by time + distance. Caller must stop on cleanup.
+ * Uses watchPositionAsync AND interval poll (Expo + Android best practice).
+ * Foreground only in Expo Go — background needs a custom build +
+ * `startLocationUpdatesAsync`.
+ * Throttles Supabase writes by time + distance. Caller must stop on cleanup.
  */
 export async function startDriverLocationPublisher(
   riderId: string,
@@ -56,11 +97,39 @@ export async function startDriverLocationPublisher(
     };
   }
 
+  const servicesOn = await Location.hasServicesEnabledAsync();
+  if (!servicesOn) {
+    if (Platform.OS === "android") {
+      try {
+        await Location.enableNetworkProviderAsync();
+      } catch {
+        return {
+          error:
+            "Turn on GPS / location services so passengers can see you on the map.",
+        };
+      }
+    } else {
+      return {
+        error:
+          "Turn on GPS / location services so passengers can see you on the map.",
+      };
+    }
+  }
+
+  if (Platform.OS === "android") {
+    try {
+      await Location.enableNetworkProviderAsync();
+    } catch {
+      // user may dismiss; polling may still work with coarse GPS
+    }
+  }
+
   let lastWrite: { lat: number; lng: number; at: number } | null = null;
   let stopped = false;
 
-  const maybeWrite = async (lat: number, lng: number) => {
+  const maybeWrite = async (lat: number; lng: number) => {
     if (stopped) return;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     onUpdate?.({ lat, lng });
 
     const now = Date.now();
@@ -83,30 +152,40 @@ export async function startDriverLocationPublisher(
     }
   };
 
+  // Seed from last-known / current so Track isn't blank for the first poll cycle.
+  const seed = await readGpsFix();
+  if (seed) await maybeWrite(seed.lat, seed.lng);
+
+  let sub: Location.LocationSubscription | null = null;
   try {
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    await maybeWrite(pos.coords.latitude, pos.coords.longitude);
+    sub = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: DRIVER_WATCH_TIME_MS,
+        distanceInterval: DRIVER_WATCH_DISTANCE_M,
+        mayShowUserSettingsDialog: true,
+      },
+      (loc) => {
+        void maybeWrite(loc.coords.latitude, loc.coords.longitude);
+      }
+    );
   } catch {
-    // watch may still recover
+    // poll fallback covers this
   }
 
-  const sub = await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.Balanced,
-      timeInterval: DRIVER_LOCATION_MIN_INTERVAL_MS,
-      distanceInterval: DRIVER_LOCATION_MIN_DISTANCE_M,
-    },
-    (loc) => {
-      void maybeWrite(loc.coords.latitude, loc.coords.longitude);
-    }
-  );
+  const timer = setInterval(() => {
+    void (async () => {
+      if (stopped) return;
+      const fix = await readGpsFix();
+      if (fix) await maybeWrite(fix.lat, fix.lng);
+    })();
+  }, DRIVER_POLL_INTERVAL_MS);
 
   return {
     stop: () => {
       stopped = true;
-      sub.remove();
+      clearInterval(timer);
+      sub?.remove();
     },
   };
 }

@@ -169,6 +169,8 @@ export function RouteMap({
         height={mapH}
         width={mapW}
         markers={markers}
+        path={routeCoords}
+        pathColor="#12372A"
         style={fullBleed ? styles.fullRaster : undefined}
       />
       <View style={styles.badge} pointerEvents="none">

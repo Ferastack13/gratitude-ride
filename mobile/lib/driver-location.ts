@@ -127,7 +127,7 @@ export async function startDriverLocationPublisher(
   let lastWrite: { lat: number; lng: number; at: number } | null = null;
   let stopped = false;
 
-  const maybeWrite = async (lat: number; lng: number) => {
+  const maybeWrite = async (lat: number, lng: number) => {
     if (stopped) return;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     onUpdate?.({ lat, lng });

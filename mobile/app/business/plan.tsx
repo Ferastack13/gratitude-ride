@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   missing: { textAlign: "center", color: colors.muted, fontWeight: "600" },
-  mapPane: { flex: 1.05, minHeight: 220 },
+  mapPane: { flex: 1.22, minHeight: 260 },
   mapTop: { position: "absolute", top: 0, left: 0, right: 0, padding: 12 },
   back: {
     width: 40,
@@ -558,7 +558,8 @@ const styles = StyleSheet.create({
     ...shadows.card,
   },
   sheet: {
-    flex: 1.35,
+    flex: 1,
+    marginTop: -24,
     backgroundColor: colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

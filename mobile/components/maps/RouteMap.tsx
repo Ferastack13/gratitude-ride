@@ -2,13 +2,14 @@ import { OsmRasterMap } from "@/components/maps/OsmRasterMap";
 import { colors, radii, shadows } from "@/constants/theme";
 import type { LatLng } from "@/lib/routing";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -41,7 +42,9 @@ type Props = {
 
 function zoomFromDelta(delta?: number) {
   const d = delta ?? 0.08;
-  if (d <= 0.02) return 15;
+  if (d <= 0.006) return 17;
+  if (d <= 0.012) return 16;
+  if (d <= 0.025) return 15;
   if (d <= 0.05) return 14;
   if (d <= 0.1) return 13;
   return 12;
@@ -59,12 +62,14 @@ function fitDelta(
     ...(dropoff ? [dropoff] : []),
     ...(driver ? [driver] : []),
   ];
-  if (pts.length < 2) return 0.06;
+  if (pts.length < 2) return 0.035;
   const lats = pts.map((p) => p.lat);
   const lngs = pts.map((p) => p.lng);
   const dLat = Math.max(...lats) - Math.min(...lats);
   const dLng = Math.max(...lngs) - Math.min(...lngs);
-  return Math.max(0.025, Math.max(dLat, dLng) * 1.55);
+  const span = Math.max(dLat, dLng);
+  // Tighter padding so pickup / driver / dropoff read at street level.
+  return Math.max(0.008, span * 1.12 + 0.004);
 }
 
 /**
@@ -85,10 +90,26 @@ export function RouteMap({
   style,
 }: Props) {
   const { width: winW, height: winH } = useWindowDimensions();
+  const [paneSize, setPaneSize] = useState({ w: winW, h: 0 });
+
+  const onPaneLayout = (e: LayoutChangeEvent) => {
+    const { width, height: h } = e.nativeEvent.layout;
+    if (width <= 0 || h <= 0) return;
+    setPaneSize((prev) =>
+      Math.abs(prev.w - width) < 1 && Math.abs(prev.h - h) < 1
+        ? prev
+        : { w: width, h }
+    );
+  };
+
+  const fallbackH = Math.round(Math.min(480, Math.max(240, winH * 0.48)));
   const mapH = fullBleed
-    ? Math.round(Math.min(420, Math.max(220, winH * 0.42)))
+    ? paneSize.h > 0
+      ? paneSize.h
+      : fallbackH
     : height;
-  const mapW = winW;
+  const mapW = fullBleed && paneSize.w > 0 ? paneSize.w : winW;
+
   const autoDelta = useMemo(
     () => delta ?? fitDelta(pickup, dropoff, driver, routeCoords),
     [
@@ -104,12 +125,26 @@ export function RouteMap({
   );
   const [zoomBoost, setZoomBoost] = useState(0);
 
+  useEffect(() => {
+    setZoomBoost(0);
+  }, [
+    pickup?.lat,
+    pickup?.lng,
+    dropoff?.lat,
+    dropoff?.lng,
+    driver?.lat,
+    driver?.lng,
+  ]);
+
   const mapCenter = useMemo(() => {
-    if (pickup && dropoff) {
-      return {
-        lat: (pickup.lat + dropoff.lat) / 2,
-        lng: (pickup.lng + dropoff.lng) / 2,
-      };
+    const pts: { lat: number; lng: number }[] = [];
+    if (pickup) pts.push(pickup);
+    if (dropoff) pts.push(dropoff);
+    if (driver) pts.push(driver);
+    if (pts.length >= 2) {
+      const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length;
+      const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length;
+      return { lat, lng };
     }
     if (driver) return { lat: driver.lat, lng: driver.lng };
     if (pickup) return { lat: pickup.lat, lng: pickup.lng };
@@ -126,7 +161,9 @@ export function RouteMap({
   ]);
 
   const baseZoom = zoomFromDelta(autoDelta);
-  const zoom = Math.min(18, Math.max(11, baseZoom + zoomBoost));
+  const tripBoost =
+    pickup && (dropoff || driver) ? 1 : pickup && dropoff ? 1 : 0;
+  const zoom = Math.min(18, Math.max(12, baseZoom + tripBoost + zoomBoost));
 
   const markers = useMemo(() => {
     const list: { lat: number; lng: number; color: string }[] = [];
@@ -137,7 +174,7 @@ export function RouteMap({
       list.push({ lat: dropoff.lat, lng: dropoff.lng, color: "#F59E0B" });
     }
     if (driver) {
-      list.push({ lat: driver.lat, lng: driver.lng, color: "#12372A" });
+      list.push({ lat: driver.lat, lng: driver.lng, color: "#2563EB" });
     }
     if (!pickup && !dropoff && !driver) {
       list.push({ lat: center.lat, lng: center.lng, color: "#1F5A42" });
@@ -161,6 +198,7 @@ export function RouteMap({
         !fullBleed ? { height: mapH } : null,
         style,
       ]}
+      onLayout={fullBleed ? onPaneLayout : undefined}
       collapsable={false}
     >
       <OsmRasterMap
@@ -168,9 +206,12 @@ export function RouteMap({
         zoom={zoom}
         height={mapH}
         width={mapW}
+        fillParent={fullBleed}
         markers={markers}
+        markerRadius={11}
         path={routeCoords}
         pathColor="#12372A"
+        pathWidth={5}
         style={fullBleed ? styles.fullRaster : undefined}
       />
       <View style={styles.badge} pointerEvents="none">

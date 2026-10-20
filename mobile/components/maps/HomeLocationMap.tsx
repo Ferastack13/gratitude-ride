@@ -110,7 +110,9 @@ export function HomeLocationMap({
       style={[
         styles.shell,
         flush && styles.shellFlush,
-        fill ? styles.fill : { height, width: mapW },
+        fill
+          ? { ...styles.fill, height: mapH, width: mapW }
+          : { height, width: mapW },
       ]}
       onLayout={onLayout}
       collapsable={false}
@@ -122,7 +124,9 @@ export function HomeLocationMap({
           zoom={zoom}
           height={mapH}
           width={mapW}
+          fillParent={fill}
           markers={mapMarkers}
+          markerRadius={10}
         />
       ) : null}
 

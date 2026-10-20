@@ -36,6 +36,10 @@ type Props = {
   /** Road path in lat/lng — drawn as screen-space segments (no native MapView). */
   path?: Coords[];
   pathColor?: string;
+  pathWidth?: number;
+  markerRadius?: number;
+  /** Stretch to parent (RouteMap / Home map pane). */
+  fillParent?: boolean;
   dragOffset?: { x: number; y: number };
   onLayoutSize?: (size: { w: number; h: number }) => void;
   style?: StyleProp<ViewStyle>;
@@ -64,6 +68,9 @@ export function OsmRasterMap({
   markers = [],
   path = [],
   pathColor = "#12372A",
+  pathWidth = 4,
+  markerRadius = 9,
+  fillParent = false,
   dragOffset = { x: 0, y: 0 },
   onLayoutSize,
   style,
@@ -86,7 +93,7 @@ export function OsmRasterMap({
 
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height: h } = e.nativeEvent.layout;
-    if (width <= 0) return;
+    if (width <= 0 || h <= 0) return;
     if (width !== size.w || Math.abs(h - size.h) > 1) {
       setSize({ w: width, h });
       onLayoutSize?.({ w: width, h });
@@ -94,10 +101,10 @@ export function OsmRasterMap({
   };
 
   const tiles = useMemo(() => {
-    if (size.w <= 0) return [];
+    if (size.w <= 0 || size.h <= 0) return [];
     const cx = lngToWorldX(center.lng, zoom);
     const cy = latToWorldY(center.lat, zoom);
-    return tilesForViewport(zoom, cx, cy, size.w, size.h, 1);
+    return tilesForViewport(zoom, cx, cy, size.w, size.h, 2);
   }, [center.lat, center.lng, zoom, size.w, size.h]);
 
   useEffect(() => {
@@ -124,6 +131,7 @@ export function OsmRasterMap({
       const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
       const midX = (a.x + b.x) / 2;
       const midY = (a.y + b.y) / 2;
+      const stroke = pathWidth;
       segments.push(
         <View
           key={`seg-${i}`}
@@ -131,12 +139,12 @@ export function OsmRasterMap({
           style={{
             position: "absolute",
             left: midX - len / 2,
-            top: midY - 2,
+            top: midY - stroke / 2,
             width: len,
-            height: 4,
-            borderRadius: 2,
+            height: stroke,
+            borderRadius: stroke / 2,
             backgroundColor: pathColor,
-            opacity: 0.88,
+            opacity: 0.92,
             transform: [{ rotate: `${angle}deg` }],
             zIndex: 1,
           }}
@@ -144,12 +152,23 @@ export function OsmRasterMap({
       );
     }
     return segments;
-  }, [path, pathColor, center.lat, center.lng, zoom, size.w, size.h]);
+  }, [
+    path,
+    pathColor,
+    pathWidth,
+    center.lat,
+    center.lng,
+    zoom,
+    size.w,
+    size.h,
+  ]);
 
   const markerNodes = useMemo(() => {
     if (size.w <= 0) return null;
     const cx = lngToWorldX(center.lng, zoom);
     const cy = latToWorldY(center.lat, zoom);
+    const r = markerRadius;
+    const d = r * 2;
     return markers.map((m, i) => {
       const mx = lngToWorldX(m.lng, zoom) - cx + size.w / 2;
       const my = latToWorldY(m.lat, zoom) - cy + size.h / 2;
@@ -160,30 +179,41 @@ export function OsmRasterMap({
           style={[
             styles.marker,
             {
-              left: mx - 9,
-              top: my - 9,
+              width: d,
+              height: d,
+              borderRadius: r,
+              left: mx - r,
+              top: my - r,
               backgroundColor: m.color ?? "#12372A",
             },
           ]}
         />
       );
     });
-  }, [markers, center.lat, center.lng, zoom, size.w, size.h]);
+  }, [
+    markers,
+    markerRadius,
+    center.lat,
+    center.lng,
+    zoom,
+    size.w,
+    size.h,
+  ]);
 
-  return (
-    <View
-      style={[
+  const shellStyle = fillParent
+    ? [styles.fillParent, style]
+    : [
         {
           height,
           width: widthProp && widthProp > 0 ? widthProp : "100%",
-          overflow: "hidden",
+          overflow: "hidden" as const,
           backgroundColor: "#e8eef2",
         },
         style,
-      ]}
-      onLayout={onLayout}
-      collapsable={false}
-    >
+      ];
+
+  return (
+    <View style={shellStyle} onLayout={onLayout} collapsable={false}>
       <View
         style={[
           styles.layer,
@@ -199,6 +229,7 @@ export function OsmRasterMap({
           <Image
             key={t.key}
             source={{ uri: t.url }}
+            resizeMode="cover"
             style={{
               position: "absolute",
               left: t.left,
@@ -238,6 +269,15 @@ export function OsmRasterMap({
 }
 
 const styles = StyleSheet.create({
+  fillParent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+    backgroundColor: "#e8eef2",
+  },
   layer: {
     position: "absolute",
     top: 0,
@@ -247,9 +287,6 @@ const styles = StyleSheet.create({
   },
   marker: {
     position: "absolute",
-    width: 18,
-    height: 18,
-    borderRadius: 9,
     borderWidth: 3,
     borderColor: "#fff",
     zIndex: 2,

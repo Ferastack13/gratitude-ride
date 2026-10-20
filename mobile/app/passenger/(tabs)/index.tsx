@@ -69,7 +69,7 @@ export default function PassengerHomeScreen() {
 
   const first = profile?.full_name?.split(" ")[0] ?? "there";
   const greeting = greetingForHour(new Date().getHours());
-  const mapHeight = Math.round(Math.min(420, Math.max(260, winH * 0.42)));
+  const mapHeight = Math.round(Math.min(400, Math.max(248, winH * 0.38)));
 
   const refreshLocation = useCallback(async () => {
     setLocating(true);
@@ -259,6 +259,7 @@ export default function PassengerHomeScreen() {
           height={mapHeight}
           width={winW}
           flush
+          fill
           controlsTop
         />
 
@@ -518,6 +519,7 @@ function makeStyles(colors: ThemeColors) {
     width: "100%",
     overflow: "hidden",
     backgroundColor: "#dbe4ea",
+    flexShrink: 0,
   },
   mapHeader: {
     position: "absolute",
@@ -561,7 +563,7 @@ function makeStyles(colors: ThemeColors) {
   },
   sheet: {
     flex: 1,
-    marginTop: -18,
+    marginTop: -26,
     backgroundColor: colors.white,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,

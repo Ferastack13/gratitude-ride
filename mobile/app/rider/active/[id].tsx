@@ -306,7 +306,6 @@ export default function ActiveDeliveryScreen() {
           fullBleed
           live={Boolean(selfCoords)}
           center={mapCenter}
-          height={Math.round(winW * 0.9)}
           pickup={
             delivery.pickup_lat != null
               ? {

@@ -1,14 +1,21 @@
-import { BrandLogo } from "@/components/brand/BrandLogo";
 import { colors } from "@/constants/theme";
 import { homeForRole, useAuth } from "@/context/auth";
 import { homeForAccount } from "@/lib/account-type";
 import { Redirect } from "expo-router";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+
+/** Same asset as expo-splash-screen (`splash-icon.png`). */
+const splashLogo = require("../assets/images/splash-icon.png");
 
 function BootSplash() {
   return (
     <View style={styles.splash}>
-      <BrandLogo size={140} />
+      <Image
+        source={splashLogo}
+        style={styles.logo}
+        resizeMode="contain"
+        accessibilityLabel="Gratitude Ride"
+      />
       <ActivityIndicator
         size="small"
         color={colors.primary}
@@ -43,6 +50,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "#F7F4ED",
+    paddingHorizontal: 32,
+  },
+  logo: {
+    width: "88%",
+    maxWidth: 320,
+    height: 220,
   },
 });

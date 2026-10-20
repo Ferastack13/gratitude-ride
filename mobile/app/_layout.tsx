@@ -1,20 +1,30 @@
 import "react-native-gesture-handler";
 
-import { AuthProvider } from "@/context/auth";
+import { AuthProvider, useAuth } from "@/context/auth";
 import { ThemeProvider, useAppTheme } from "@/context/theme";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
-export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync().catch(() => undefined);
-  }, []);
+/** Keep native splash (splash-icon.png) visible until auth bootstrap finishes. */
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
+function NativeSplashGate() {
+  const { ready } = useAuth();
+  useEffect(() => {
+    if (ready) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [ready]);
+  return null;
+}
+
+export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <NativeSplashGate />
         <ThemedApp />
       </AuthProvider>
     </ThemeProvider>

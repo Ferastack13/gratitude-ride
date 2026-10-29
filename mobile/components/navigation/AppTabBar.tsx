@@ -1,95 +1,38 @@
-import { radii, shadows, type ThemeColors } from "@/constants/theme";
+import { radii } from "@/constants/theme";
 import { useColors } from "@/context/theme";
 import { useUnreadNotificationCount } from "@/hooks/useUnreadNotificationCount";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import type { ComponentProps } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
 type TabTheme = {
-  accent: string;
-  soft: string;
   outline: IconName;
   filled: IconName;
 };
 
-function tabThemes(colors: ThemeColors): Record<string, TabTheme> {
+function tabThemes(): Record<string, TabTheme> {
   return {
-    index: {
-      accent: colors.primary,
-      soft: colors.primarySoft,
-      outline: "home-outline",
-      filled: "home",
-    },
-    services: {
-      accent: colors.secondary,
-      soft: colors.secondarySoft,
-      outline: "apps-outline",
-      filled: "apps",
-    },
-    activity: {
-      accent: colors.success,
-      soft: colors.successSoft,
-      outline: "pulse-outline",
-      filled: "pulse",
-    },
-    account: {
-      accent: colors.primaryGlow,
-      soft: colors.pastelBlue,
-      outline: "person-circle-outline",
-      filled: "person-circle",
-    },
-    orders: {
-      accent: colors.secondary,
-      soft: colors.secondarySoft,
-      outline: "compass-outline",
-      filled: "compass",
-    },
-    earnings: {
-      accent: colors.success,
-      soft: colors.successSoft,
-      outline: "wallet-outline",
-      filled: "wallet",
-    },
-    inbox: {
-      accent: colors.primaryGlow,
-      soft: colors.pastelBlue,
-      outline: "chatbubbles-outline",
-      filled: "chatbubbles",
-    },
-    profile: {
-      accent: colors.primary,
-      soft: colors.primarySoft,
-      outline: "person-circle-outline",
-      filled: "person-circle",
-    },
-    book: {
-      accent: colors.secondary,
-      soft: colors.secondarySoft,
-      outline: "cube-outline",
-      filled: "cube",
-    },
-    deliveries: {
-      accent: colors.success,
-      soft: colors.successSoft,
-      outline: "navigate-outline",
-      filled: "navigate",
-    },
-    bookings: {
-      accent: colors.primaryGlow,
-      soft: colors.pastelBlue,
-      outline: "briefcase-outline",
-      filled: "briefcase",
-    },
-    billing: {
-      accent: colors.secondary,
-      soft: colors.secondarySoft,
-      outline: "card-outline",
-      filled: "card",
-    },
+    index: { outline: "home-outline", filled: "home" },
+    services: { outline: "grid-outline", filled: "grid" },
+    activity: { outline: "time-outline", filled: "time" },
+    account: { outline: "person-outline", filled: "person" },
+    orders: { outline: "compass-outline", filled: "compass" },
+    earnings: { outline: "wallet-outline", filled: "wallet" },
+    inbox: { outline: "chatbubble-ellipses-outline", filled: "chatbubble-ellipses" },
+    profile: { outline: "person-outline", filled: "person" },
+    book: { outline: "cube-outline", filled: "cube" },
+    deliveries: { outline: "navigate-outline", filled: "navigate" },
+    bookings: { outline: "briefcase-outline", filled: "briefcase" },
+    billing: { outline: "card-outline", filled: "card" },
   };
 }
 
@@ -109,34 +52,23 @@ const TAB_ROUTE_ALLOWLIST = new Set([
   "team",
 ]);
 
-function themeFor(routeName: string, label: string, colors: ThemeColors): TabTheme {
+function themeFor(routeName: string, label: string): TabTheme {
   if (routeName === "index" && label === "Hub") {
-    return {
-      accent: colors.primary,
-      soft: colors.primarySoft,
-      outline: "bicycle-outline",
-      filled: "bicycle",
-    };
+    return { outline: "bicycle-outline", filled: "bicycle" };
   }
-  return (
-    tabThemes(colors)[routeName] ?? {
-      accent: colors.primary,
-      soft: colors.primarySoft,
-      outline: "ellipse-outline",
-      filled: "ellipse",
-    }
-  );
+  return tabThemes()[routeName] ?? { outline: "ellipse-outline", filled: "ellipse" };
 }
+
+const pillLayout = LinearTransition.springify().damping(18).stiffness(240).mass(0.7);
 
 /** Android-safe tab bar — sits above MapView and always receives taps. */
 export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const unreadInbox = useUnreadNotificationCount();
-  const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 12 : 8);
+  const bottomPad = Math.max(insets.bottom, Platform.OS === "android" ? 10 : 8);
 
   const focused = state.routes[state.index];
-  // Full-screen trip screens — hide dock so slide/actions are tappable
   if (
     focused?.name?.startsWith("active") ||
     focused?.name?.startsWith("track") ||
@@ -161,25 +93,27 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 
   return (
     <View
-      style={[styles.wrap, { paddingBottom: bottomPad, backgroundColor: colors.surface }]}
+      style={[styles.wrap, { paddingBottom: bottomPad }]}
       collapsable={false}
+      pointerEvents="box-none"
       renderToHardwareTextureAndroid
     >
       <View
         style={[
           styles.dock,
-          { backgroundColor: colors.white, borderColor: colors.border },
+          {
+            backgroundColor: colors.darkSurface,
+            borderColor: "rgba(245, 158, 61, 0.28)",
+            shadowColor: colors.primaryDark,
+          },
         ]}
         collapsable={false}
       >
-        <View style={styles.brandStrip}>
-          <View style={[styles.brandForest, { backgroundColor: colors.primary }]} />
-          <View style={[styles.brandGold, { backgroundColor: colors.secondary }]} />
-        </View>
+        <View style={styles.goldRail} />
         <View style={styles.row} collapsable={false}>
           {tabs.map((route) => {
             const index = state.routes.findIndex((r) => r.key === route.key);
-            const focused = state.index === index;
+            const isOn = state.index === index;
             const { options } = descriptors[route.key];
             const label =
               typeof options.title === "string"
@@ -188,12 +122,10 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                   ? "Home"
                   : route.name;
 
-            const theme = themeFor(route.name, label, colors);
-            const icon = focused ? theme.filled : theme.outline;
-            const showUnread =
-              route.name === "inbox" && unreadInbox > 0;
-            const unreadLabel =
-              unreadInbox > 9 ? "9+" : String(unreadInbox);
+            const theme = themeFor(route.name, label);
+            const icon = isOn ? theme.filled : theme.outline;
+            const showUnread = route.name === "inbox" && unreadInbox > 0;
+            const unreadLabel = unreadInbox > 9 ? "9+" : String(unreadInbox);
 
             const onPress = () => {
               const event = navigation.emit({
@@ -202,7 +134,7 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 canPreventDefault: true,
               });
 
-              if (!focused && !event.defaultPrevented) {
+              if (!isOn && !event.defaultPrevented) {
                 navigation.navigate(route.name, route.params);
               }
             };
@@ -211,59 +143,62 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
               <Pressable
                 key={route.key}
                 accessibilityRole="button"
-                accessibilityState={focused ? { selected: true } : {}}
+                accessibilityState={isOn ? { selected: true } : {}}
                 accessibilityLabel={
-                  showUnread
-                    ? `${label}, ${unreadInbox} unread`
-                    : label
+                  showUnread ? `${label}, ${unreadInbox} unread` : label
                 }
                 onPress={onPress}
-                android_ripple={{ color: theme.soft, borderless: false }}
+                android_ripple={{ color: "rgba(245, 158, 61, 0.18)", borderless: true }}
                 style={({ pressed }) => [
-                  styles.item,
-                  focused && [
-                    styles.itemOn,
-                    {
-                      backgroundColor: theme.accent,
-                      shadowColor: theme.accent,
-                    },
-                  ],
-                  pressed && styles.itemPressed,
+                  styles.slot,
+                  isOn ? styles.slotOn : styles.slotOff,
+                  pressed && styles.slotPressed,
                 ]}
               >
-                <View
+                <Animated.View
+                  layout={pillLayout}
                   style={[
-                    styles.iconWell,
-                    focused
-                      ? { backgroundColor: colors.white }
-                      : { backgroundColor: theme.soft },
+                    styles.chip,
+                    isOn
+                      ? { backgroundColor: colors.surface }
+                      : { backgroundColor: "transparent" },
                   ]}
                 >
-                  <Ionicons
-                    name={icon}
-                    size={focused ? 18 : 20}
-                    color={theme.accent}
-                  />
-                  {showUnread ? (
-                    <View
-                      style={[
-                        styles.badge,
-                        { backgroundColor: colors.secondary },
-                      ]}
+                  <View style={styles.iconWrap}>
+                    <Ionicons
+                      name={icon}
+                      size={isOn ? 18 : 22}
+                      color={isOn ? colors.primary : "rgba(247, 244, 237, 0.62)"}
+                    />
+                    {showUnread ? (
+                      <View
+                        style={[
+                          styles.badge,
+                          { backgroundColor: colors.secondary, borderColor: colors.darkSurface },
+                        ]}
+                      >
+                        <Text style={styles.badgeText}>{unreadLabel}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {isOn ? (
+                    <Animated.View
+                      entering={FadeIn.duration(160)}
+                      exiting={FadeOut.duration(90)}
+                      style={styles.labelCluster}
                     >
-                      <Text style={styles.badgeText}>{unreadLabel}</Text>
-                    </View>
+                      <Text
+                        style={[styles.label, { color: colors.dark }]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
+                      <View
+                        style={[styles.goldDot, { backgroundColor: colors.secondary }]}
+                      />
+                    </Animated.View>
                   ) : null}
-                </View>
-                <Text
-                  style={[
-                    styles.label,
-                    focused ? { color: colors.white, fontWeight: "700" } : { color: colors.muted },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {label}
-                </Text>
+                </Animated.View>
               </Pressable>
             );
           })}
@@ -273,87 +208,100 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   );
 }
 
-export const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 98 : 86;
+export const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 96 : 84;
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: 14,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 6,
     zIndex: 10000,
-    elevation: 16,
+    elevation: 20,
   },
   dock: {
-    borderRadius: radii.xxl,
+    borderRadius: radii.xxl + 6,
     borderWidth: 1,
     overflow: "hidden",
-    ...shadows.float,
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 14,
   },
-  brandStrip: {
-    height: 3,
-    flexDirection: "row",
-  },
-  brandForest: {
-    flex: 2,
-  },
-  brandGold: {
-    flex: 1,
+  goldRail: {
+    height: 2,
+    backgroundColor: "#F59E3D",
+    opacity: 0.9,
   },
   row: {
-    minHeight: 62,
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 6,
     paddingVertical: 6,
-    gap: 4,
+    gap: 2,
   },
-  item: {
-    flex: 1,
-    alignItems: "center",
+  slot: {
+    minHeight: 46,
     justifyContent: "center",
-    gap: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: radii.xl,
-    minHeight: 56,
+    alignItems: "stretch",
   },
-  itemOn: {
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+  slotOn: {
+    flex: 1.7,
   },
-  itemPressed: {
+  slotOff: {
+    flex: 0.85,
+  },
+  slotPressed: {
     transform: [{ scale: 0.96 }],
-    opacity: 0.92,
+    opacity: 0.9,
   },
-  iconWell: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  chip: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 46,
+    borderRadius: radii.full,
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  iconWrap: {
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  labelCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+                    maxWidth: 110,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+    flexShrink: 1,
+  },
+  goldDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
   badge: {
     position: "absolute",
-    top: -3,
-    right: -5,
+    top: -5,
+    right: -8,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
     paddingHorizontal: 3,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1.5,
   },
   badgeText: {
-    color: "#fff",
-    fontSize: 9,
+    color: "#12372A",
+    fontSize: 8,
     fontWeight: "800",
-    lineHeight: 11,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.15,
+    lineHeight: 10,
   },
 });
